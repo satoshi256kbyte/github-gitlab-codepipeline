@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Steering更新時のタスク見直し",
+  "description": "Steeringファイルが更新された際に、[4-wbs.md](.kiro/steering/4-wbs.md)の内容を見直して必要に応じて更新する",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "**/*steering*"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Steeringファイルが更新されました。4-wbs.mdの内容を確認し、新しいSteeringの内容に基づいてタスクの見直しや更新が必要かどうかを判断してください。必要に応じて4-wbs.mdを更新してください。"
+  }
+}

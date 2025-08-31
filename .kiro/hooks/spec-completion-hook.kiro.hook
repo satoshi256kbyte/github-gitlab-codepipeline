@@ -1,0 +1,18 @@
+{
+  "enabled": true,
+  "name": "Spec完了時処理",
+  "description": "Spec完了時に修正したソースをGitへコミット（プッシュなし）、WBS更新、次のタスクのSpec開始を行う",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "**/*spec*.md",
+      "**/*仕様*.md",
+      "**/*specification*.md"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Spec完了時の処理を実行してください：\n1. 修正したソースをGitへコミットしてください（プッシュはしないでください）\n2. コミットメッセージは[7-implementation-guide.md](.kiro/steering/7-implementation-guide.md)を参照してください\n3. [4-wbs.md](.kiro/steering/4-wbs.md)を更新してください\n4. WBSを参照して次のタスクのSpecを開始してください\n\n全ての処理を日本語で実行してください。"
+  }
+}

@@ -1,0 +1,16 @@
+{
+    "enabled": true,
+    "name": "Spec作成時にWBSを更新",
+    "description": "Specのtasks.mdファイルが作成または更新された時に、[4-wbs.md](.kiro/steering/4-wbs.md)ファイルを自動的に更新します",
+    "version": "1",
+    "when": {
+        "type": "fileEdited",
+        "patterns": [
+            "**/.kiro/specs/*/tasks.md"
+        ]
+    },
+    "then": {
+        "type": "askAgent",
+        "prompt": "Specのtasks.mdファイルが更新されました。4-wbs.mdファイルを確認し、該当するSpecの進捗状況を反映して更新してください。新しいSpecが作成された場合は、適切なタスクリストに追加し、既存のSpecが更新された場合は進捗状況を更新してください。"
+    }
+}

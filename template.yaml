@@ -1,0 +1,142 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  CodePipeline専用 CI/CD比較サンプルアプリケーション
+  
+  FastAPI Lambda関数とAPI Gatewayの統合
+
+Parameters:
+  Environment:
+    Type: String
+    Default: local
+    AllowedValues:
+      - local
+      - dev
+      - stg
+      - prd
+    Description: デプロイ環境
+
+  CicdTool:
+    Type: String
+    Default: codepipeline
+    Description: CI/CDツール名
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: python3.13
+    Architecture: arm64
+    Environment:
+      Variables:
+        ENVIRONMENT: !Ref Environment
+        CICD_TOOL: !Ref CicdTool
+
+Resources:
+  # Lambda関数
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "${CicdTool}-${Environment}-lambda-api-1"
+      CodeUri: modules/api/
+      Handler: main.lambda_handler
+      Description: !Sub "${CicdTool} CI/CD用FastAPI Lambda関数"
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /{proxy+}
+            Method: ANY
+        RootEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /
+            Method: ANY
+
+  # API Gateway
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub "${CicdTool}-${Environment}-api-gateway-1"
+      StageName: !Ref Environment
+      Description: !Sub "${CicdTool} CI/CD用API Gateway"
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+      DefinitionBody:
+        swagger: '2.0'
+        info:
+          title: !Sub "${CicdTool} CI/CD Comparison API"
+          version: '1.0'
+        paths:
+          /{proxy+}:
+            x-amazon-apigateway-any-method:
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ApiFunction.Arn}/invocations"
+          /:
+            x-amazon-apigateway-any-method:
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ApiFunction.Arn}/invocations"
+
+  # Lambda実行ロール
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${CicdTool}-${Environment}-lambda-api-role"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: CicdTool
+          Value: !Ref CicdTool
+
+  # Lambda権限（API Gateway用）
+  LambdaApiGatewayPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ApiFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "${ApiGateway}/*/ANY/*"
+
+  LambdaApiGatewayRootPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ApiFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "${ApiGateway}/*/ANY/"
+
+Outputs:
+  ApiGatewayUrl:
+    Description: API Gateway URL
+    Value: !Sub "https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com/${Environment}/"
+    Export:
+      Name: !Sub "${CicdTool}-${Environment}-api-url"
+
+  LambdaFunctionArn:
+    Description: Lambda Function ARN
+    Value: !GetAtt ApiFunction.Arn
+    Export:
+      Name: !Sub "${CicdTool}-${Environment}-lambda-arn"
+
+  LambdaFunctionName:
+    Description: Lambda Function Name
+    Value: !Ref ApiFunction
+    Export:
+      Name: !Sub "${CicdTool}-${Environment}-lambda-name"

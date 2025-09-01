@@ -1,0 +1,34 @@
+# GitHub Actions ローカル実行設定
+# actツール用設定ファイル
+
+# デフォルトプラットフォーム（Ubuntu最新版を使用）
+-P ubuntu-latest=catthehacker/ubuntu:act-latest
+
+# 環境変数ファイルの指定
+--env-file .env.local
+
+# ワークフローファイルのパス
+--workflows .github/workflows
+
+# ローカル実行時のボリュームマウント
+--bind
+
+# ネットワーク設定（ホストネットワークを使用）
+--use-gitignore=false
+
+# 実行時の詳細ログを有効化
+--verbose
+
+# コンテナの自動削除を有効化
+--rm
+
+# プラットフォーム固有の設定
+-P ubuntu-20.04=catthehacker/ubuntu:act-20.04
+-P ubuntu-22.04=catthehacker/ubuntu:act-22.04
+
+# リソース制限
+--container-cap-add SYS_PTRACE
+--container-cap-add NET_ADMIN
+
+# セキュリティ設定
+--privileged=false

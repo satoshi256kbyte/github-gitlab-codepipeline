@@ -1,0 +1,24 @@
+name: "CodeQL Config"
+
+# CodeQLクエリの設定
+queries:
+  - uses: security-and-quality
+
+# 除外するパス
+paths-ignore:
+  - "**/*.md"
+  - "**/*.txt"
+  - "**/*.json"
+  - "**/*.yml"
+  - "**/*.yaml"
+  - "**/node_modules/**"
+  - "**/.venv/**"
+  - "**/cdk.out/**"
+  - "**/__pycache__/**"
+  - "**/*.pyc"
+
+# 含めるパス
+paths:
+  - "modules/api/**/*.py"
+  - "cdk/**/*.ts"
+  - "scripts/**/*.sh"

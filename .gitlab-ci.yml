@@ -1,0 +1,410 @@
+# GitLab CI/CD Pipeline for CI/CD Comparison Project
+# 3つのCI/CDツール（GitHub Actions、GitLab CI/CD、AWS CodePipeline）の比較用パイプライン
+
+# 変数定義
+variables:
+  # プロジェクト設定
+  SERVICE_NAME: "cicd-comparison"
+  STAGE_NAME: "local"
+  CICD_TOOL: "gitlab"
+  
+  # AWS設定
+  AWS_DEFAULT_REGION: "ap-northeast-1"
+  AWS_ACCOUNT_ID: "${AWS_ACCOUNT_ID}"
+  
+  # Docker設定
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+  
+  # Python設定
+  PYTHONPATH: "${CI_PROJECT_DIR}"
+  UV_CACHE_DIR: "${CI_PROJECT_DIR}/.cache/uv"
+  
+  # キャッシュ設定
+  CACHE_KEY: "cache-${CI_COMMIT_REF_SLUG}"
+  
+  # GitLab専用リソース設定
+  IMAGE_REPO_NAME: "${CICD_TOOL}-${STAGE_NAME}-ecr-api"
+  APPLICATION_NAME: "${CICD_TOOL}-${STAGE_NAME}-codedeploy-ecs"
+  DEPLOYMENT_GROUP: "${CICD_TOOL}-${STAGE_NAME}-deployment-group-ecs"
+  APPLICATION_NAME_EC2: "${CICD_TOOL}-${STAGE_NAME}-codedeploy-ec2"
+  DEPLOYMENT_GROUP_EC2: "${CICD_TOOL}-${STAGE_NAME}-deployment-group-ec2"
+  S3_BUCKET: "${CICD_TOOL}-${STAGE_NAME}-s3-codedeploy"
+  ALB_NAME_ECS: "${CICD_TOOL}-${STAGE_NAME}-alb-ecs"
+  ALB_NAME_EC2: "${CICD_TOOL}-${STAGE_NAME}-alb-ec2"
+  SAM_STACK_NAME: "${CICD_TOOL}-${STAGE_NAME}-sam-stack"
+  DEPLOYMENT_TIMEOUT: "1800"
+
+# ステージ定義
+stages:
+  - cache
+  - check
+  - deploy
+
+# キャッシュ設定
+cache:
+  key: "${CACHE_KEY}-${CI_COMMIT_SHA}"
+  paths:
+    - .cache/
+    - .asdf/
+    - node_modules/
+    - .venv/
+  policy: pull
+
+# 共通設定
+.common_setup: &common_setup
+  image: ubuntu:22.04
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq git curl unzip jq
+    - echo "Setting up common environment..."
+
+# AWS CLI設定
+.aws_setup: &aws_setup
+  before_script:
+    - !reference [.common_setup, before_script]
+    - echo "Installing AWS CLI..."
+    - curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    - unzip -q awscliv2.zip
+    - ./aws/install
+    - aws --version
+
+# Python環境設定
+.python_setup: &python_setup
+  before_script:
+    - !reference [.common_setup, before_script]
+    - echo "Installing asdf and Python..."
+    - git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.14.0
+    - echo '. ~/.asdf/asdf.sh' >> ~/.bashrc
+    - export PATH="$HOME/.asdf/bin:$PATH"
+    - . ~/.asdf/asdf.sh
+    - asdf plugin add python
+    - asdf plugin add nodejs
+    - asdf install
+    - echo "Installing uv..."
+    - curl -LsSf https://astral.sh/uv/install.sh | sh
+    - export PATH="$HOME/.cargo/bin:$PATH"
+    - uv --version
+
+# Node.js環境設定
+.nodejs_setup: &nodejs_setup
+  before_script:
+    - !reference [.python_setup, before_script]
+    - echo "Setting up Node.js environment..."
+    - npm install
+
+# Docker環境設定
+.docker_setup: &docker_setup
+  services:
+    - docker:24-dind
+  before_script:
+    - !reference [.aws_setup, before_script]
+    - echo "Setting up Docker environment..."
+    - docker info
+
+# 失敗条件の設定
+.failure_conditions: &failure_conditions
+  after_script:
+    - |
+      if [ $CI_JOB_STATUS = "failed" ]; then
+        echo "Job failed due to:"
+        echo "- Static analysis failure, or"
+        echo "- Unit test failure, or" 
+        echo "- SCA vulnerability found, or"
+        echo "- SAST vulnerability found"
+      fi
+
+# ===== キャッシュステージ =====
+
+cache_dependencies:
+  stage: cache
+  <<: *nodejs_setup
+  cache:
+    key: "${CACHE_KEY}-${CI_COMMIT_SHA}"
+    paths:
+      - .cache/
+      - .asdf/
+      - node_modules/
+      - .venv/
+    policy: push
+  script:
+    - echo "Creating cache for dependencies..."
+    - . ~/.asdf/asdf.sh
+    - export PATH="$HOME/.cargo/bin:$PATH"
+    - echo "Installing Python dependencies..."
+    - cd modules/api && uv sync --dev && cd ../..
+    - echo "Installing CDK dependencies..."
+    - cd cdk && npm install && cd ..
+    - echo "Exporting requirements for security scanning..."
+    - cd modules/api && uv export --all-packages --no-dev --frozen --no-editable -o requirements.txt --no-emit-workspace --no-hashes --no-header && cd ../..
+    - echo "Cache creation completed"
+  artifacts:
+    paths:
+      - modules/api/requirements.txt
+    expire_in: 1 hour
+
+# ===== チェックステージ =====
+
+# 静的解析ジョブ
+lint:
+  stage: check
+  <<: *python_setup
+  <<: *failure_conditions
+  needs: ["cache_dependencies"]
+  script:
+    - echo "=== GitLab CI/CD Static Analysis ==="
+    - . ~/.asdf/asdf.sh
+    - export PATH="$HOME/.cargo/bin:$PATH"
+    - cd modules/api
+    - uv sync --dev
+    - echo "Running ruff linting..."
+    - uv run ruff check . --output-format=gitlab > ruff-report.json || RUFF_EXIT_CODE=$?
+    - echo "Running black formatting check..."
+    - uv run black --check . || BLACK_EXIT_CODE=$?
+    - cd ../..
+    - echo "Running CDK lint..."
+    - cd cdk
+    - npm run lint || CDK_EXIT_CODE=$?
+    - cd ..
+    - |
+      if [ "${RUFF_EXIT_CODE:-0}" -ne 0 ] || [ "${BLACK_EXIT_CODE:-0}" -ne 0 ] || [ "${CDK_EXIT_CODE:-0}" -ne 0 ]; then
+        echo "ERROR: Static analysis failed"
+        echo "Ruff exit code: ${RUFF_EXIT_CODE:-0}"
+        echo "Black exit code: ${BLACK_EXIT_CODE:-0}"
+        echo "CDK lint exit code: ${CDK_EXIT_CODE:-0}"
+        exit 1
+      fi
+    - echo "Static analysis completed successfully"
+  artifacts:
+    reports:
+      codequality: modules/api/ruff-report.json
+    expire_in: 1 week
+
+# ユニットテストジョブ
+test:
+  stage: check
+  <<: *python_setup
+  <<: *failure_conditions
+  needs: ["cache_dependencies"]
+  script:
+    - echo "=== GitLab CI/CD Unit Tests ==="
+    - . ~/.asdf/asdf.sh
+    - export PATH="$HOME/.cargo/bin:$PATH"
+    - cd modules/api
+    - uv sync --dev
+    - echo "Running pytest with coverage..."
+    - uv run pytest tests/ -v --tb=short --cov=. --cov-report=xml --cov-report=term-missing --junit-xml=junit-report.xml
+    - echo "Unit tests completed successfully"
+  coverage: '/TOTAL.*\s+(\d+%)$/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: modules/api/coverage.xml
+      junit: modules/api/junit-report.xml
+    expire_in: 1 week
+
+# SCAチェックジョブ（GitLab Dependency Scanning + CodeGuru Security）
+sca_check:
+  stage: check
+  <<: *aws_setup
+  <<: *failure_conditions
+  needs: ["cache_dependencies"]
+  script:
+    - echo "=== GitLab CI/CD SCA Checks ==="
+    - echo "1. GitLab Dependency Scanning runs automatically via include template"
+    
+    - echo "2. Running AWS CodeGuru Security for SCA..."
+    - SCAN_NAME="${CICD_TOOL}-${SERVICE_NAME}-${STAGE_NAME}-sca-$(date +%s)"
+    - echo "Scan name: $SCAN_NAME"
+    - zip -r /tmp/source-code.zip . -x "*.git*" "node_modules/*" "*.pyc" "__pycache__/*" ".venv/*" ".cache/*"
+    - bash ./scripts/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION
+    
+    - echo "Analyzing CodeGuru Security SCA results..."
+    - CRITICAL_COUNT=$(jq '[.findings[] | select(.severity == "Critical")] | length' $SCAN_NAME.json)
+    - HIGH_COUNT=$(jq '[.findings[] | select(.severity == "High")] | length' $SCAN_NAME.json)
+    - MEDIUM_COUNT=$(jq '[.findings[] | select(.severity == "Medium")] | length' $SCAN_NAME.json)
+    - LOW_COUNT=$(jq '[.findings[] | select(.severity == "Low")] | length' $SCAN_NAME.json)
+    - |
+      echo "========= GitLab SCA Vulnerability Analysis ========="
+      echo "Tool: GitLab Dependency Scanning + AWS CodeGuru Security"
+      echo "Critical severity vulnerabilities found: $CRITICAL_COUNT"
+      echo "High severity vulnerabilities found: $HIGH_COUNT"
+      echo "Medium severity vulnerabilities found: $MEDIUM_COUNT"
+      echo "Low severity vulnerabilities found: $LOW_COUNT"
+      echo "===================================================="
+    - |
+      if [ "$CRITICAL_COUNT" -gt 0 ]; then
+        echo "ERROR: Found $CRITICAL_COUNT critical vulnerabilities in dependencies"
+        echo "Pipeline failed due to critical SCA vulnerabilities"
+        exit 1
+      fi
+    - echo "GitLab SCA checks completed successfully"
+  artifacts:
+    paths:
+      - "*.json"
+    expire_in: 1 week
+
+# SASTチェックジョブ（GitLab SAST + CodeGuru Security）
+sast_check:
+  stage: check
+  <<: *aws_setup
+  <<: *failure_conditions
+  needs: ["cache_dependencies"]
+  script:
+    - echo "=== GitLab CI/CD SAST Checks ==="
+    - echo "1. GitLab SAST runs automatically via include template"
+    
+    - echo "2. Running AWS CodeGuru Security for SAST..."
+    - SCAN_NAME="${CICD_TOOL}-${SERVICE_NAME}-${STAGE_NAME}-sast-$(date +%s)"
+    - echo "Scan name: $SCAN_NAME"
+    - zip -r /tmp/source-code.zip . -x "*.git*" "node_modules/*" "*.pyc" "__pycache__/*" ".venv/*" ".cache/*"
+    - bash ./scripts/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION
+    
+    - echo "Analyzing CodeGuru Security SAST results..."
+    - CRITICAL_COUNT=$(jq '[.findings[] | select(.severity == "Critical")] | length' $SCAN_NAME.json)
+    - HIGH_COUNT=$(jq '[.findings[] | select(.severity == "High")] | length' $SCAN_NAME.json)
+    - MEDIUM_COUNT=$(jq '[.findings[] | select(.severity == "Medium")] | length' $SCAN_NAME.json)
+    - LOW_COUNT=$(jq '[.findings[] | select(.severity == "Low")] | length' $SCAN_NAME.json)
+    - |
+      echo "========= GitLab SAST Vulnerability Analysis ========="
+      echo "Tool: GitLab SAST + AWS CodeGuru Security"
+      echo "Critical severity vulnerabilities found: $CRITICAL_COUNT"
+      echo "High severity vulnerabilities found: $HIGH_COUNT"
+      echo "Medium severity vulnerabilities found: $MEDIUM_COUNT"
+      echo "Low severity vulnerabilities found: $LOW_COUNT"
+      echo "====================================================="
+    - |
+      if [ "$CRITICAL_COUNT" -gt 0 ]; then
+        echo "ERROR: Found $CRITICAL_COUNT critical vulnerabilities in source code"
+        echo "Pipeline failed due to critical SAST vulnerabilities"
+        exit 1
+      fi
+    - echo "GitLab SAST checks completed successfully"
+  artifacts:
+    paths:
+      - "*.json"
+    expire_in: 1 week
+
+# GitLab Security Scanningの有効化
+include:
+  - template: Security/Dependency-Scanning.gitlab-ci.yml
+  - template: Security/SAST.gitlab-ci.yml
+
+# GitLab Dependency Scanningの設定
+dependency_scanning:
+  stage: check
+  variables:
+    DS_PYTHON_VERSION: "3.13"
+    DS_ANALYZER_IMAGE_TAG: "latest"
+  artifacts:
+    reports:
+      dependency_scanning: gl-dependency-scanning-report.json
+    expire_in: 1 week
+
+# GitLab SASTの設定  
+sast:
+  stage: check
+  variables:
+    SAST_ANALYZER_IMAGE_TAG: "latest"
+    SAST_EXCLUDED_ANALYZERS: "eslint"  # JavaScript解析を除外（Pythonプロジェクトのため）
+  artifacts:
+    reports:
+      sast: gl-sast-report.json
+    expire_in: 1 week
+# ==
+=== デプロイステージ =====
+
+# AWS Lambda SAMデプロイ（GitLab専用リソース）
+deploy_lambda:
+  stage: deploy
+  <<: *aws_setup
+  needs: ["lint", "test", "sca_check", "sast_check"]
+  script:
+    - echo "=== GitLab CI/CD Lambda Deployment ==="
+    - echo "Deploying to GitLab-specific AWS Lambda resources..."
+    - . ~/.asdf/asdf.sh
+    - export PATH="$HOME/.cargo/bin:$PATH"
+    
+    - echo "Using GitLab deployment script..."
+    - bash gitlab/scripts/deploy-lambda.sh
+    
+    - echo "Verifying GitLab Lambda deployment..."
+    - API_ENDPOINT=$(aws cloudformation describe-stacks --stack-name ${SAM_STACK_NAME} --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" --output text --region $AWS_DEFAULT_REGION)
+    - echo "GitLab Lambda API Endpoint: $API_ENDPOINT"
+    - curl -f "$API_ENDPOINT/health" || (echo "GitLab Lambda health check failed" && exit 1)
+    - curl -f "$API_ENDPOINT/version" || (echo "GitLab Lambda version check failed" && exit 1)
+    - echo "GitLab Lambda deployment completed successfully"
+  environment:
+    name: gitlab-lambda
+    url: https://${AWS_ACCOUNT_ID}.execute-api.${AWS_DEFAULT_REGION}.amazonaws.com/local
+  artifacts:
+    paths:
+      - sam-installation/
+    expire_in: 1 hour
+  only:
+    - main
+    - develop
+
+# ECS Blue/Greenデプロイ（GitLab専用リソース）
+deploy_ecs:
+  stage: deploy
+  <<: *docker_setup
+  needs: ["lint", "test", "sca_check", "sast_check"]
+  script:
+    - echo "=== GitLab CI/CD ECS Blue/Green Deployment ==="
+    - echo "Deploying to GitLab-specific ECS resources (Port 8081)..."
+    
+    - echo "Using GitLab ECS deployment script..."
+    - bash gitlab/scripts/deploy-ecs.sh
+    
+    - echo "Verifying GitLab ECS deployment..."
+    - ALB_DNS=$(aws elbv2 describe-load-balancers --names ${ALB_NAME_ECS} --query "LoadBalancers[0].DNSName" --output text --region $AWS_DEFAULT_REGION)
+    - echo "GitLab ECS ALB DNS: $ALB_DNS"
+    - echo "Testing GitLab ECS endpoints..."
+    - curl -f "http://$ALB_DNS:8081/health" || (echo "GitLab ECS health check failed" && exit 1)
+    - curl -f "http://$ALB_DNS:8081/version" || (echo "GitLab ECS version check failed" && exit 1)
+    - echo "GitLab ECS deployment completed successfully"
+  environment:
+    name: gitlab-ecs
+    url: http://${ALB_NAME_ECS}:8081
+  artifacts:
+    paths:
+      - taskdef-updated.json
+      - appspec-updated.yml
+      - deployment.json
+    expire_in: 1 week
+  only:
+    - main
+    - develop
+
+# EC2 CodeDeployデプロイ（GitLab専用リソース）
+deploy_ec2:
+  stage: deploy
+  <<: *aws_setup
+  needs: ["lint", "test", "sca_check", "sast_check"]
+  script:
+    - echo "=== GitLab CI/CD EC2 CodeDeploy Blue/Green Deployment ==="
+    - echo "Deploying to GitLab-specific EC2 resources (Port 8081)..."
+    
+    - echo "Using GitLab EC2 deployment script..."
+    - bash gitlab/scripts/deploy-ec2.sh
+    
+    - echo "Verifying GitLab EC2 deployment..."
+    - ALB_DNS_EC2=$(aws elbv2 describe-load-balancers --names ${ALB_NAME_EC2} --query "LoadBalancers[0].DNSName" --output text --region $AWS_DEFAULT_REGION)
+    - echo "GitLab EC2 ALB DNS: $ALB_DNS_EC2"
+    - echo "Testing GitLab EC2 endpoints..."
+    - curl -f "http://$ALB_DNS_EC2:8081/health" || (echo "GitLab EC2 health check failed" && exit 1)
+    - curl -f "http://$ALB_DNS_EC2:8081/version" || (echo "GitLab EC2 version check failed" && exit 1)
+    - echo "GitLab EC2 deployment completed successfully"
+  environment:
+    name: gitlab-ec2
+    url: http://${ALB_NAME_EC2}:8081
+  artifacts:
+    paths:
+      - deployment-package.zip
+      - ec2-deployment.json
+    expire_in: 1 week
+  only:
+    - main
+    - develop

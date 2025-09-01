@@ -1,0 +1,39 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - bash codepipeline/buildspecs/common_install.sh
+
+  pre_build:
+    commands:
+      - bash codepipeline/buildspecs/common_pre_build.sh --dev
+
+  build:
+    commands:
+      - . codepipeline/buildspecs/common_env.sh
+      - echo "静的解析を実行中..."
+      - echo "Python コードの静的解析（ruff）"
+      - uv run ruff check modules/
+      - echo "Python コードフォーマットチェック（black）"
+      - uv run black --check modules/
+      - echo "TypeScript コードの静的解析（CDK）"
+      - cd cdk
+      - npm run lint
+      - cd ..
+
+  post_build:
+    commands:
+      - echo "静的解析が正常に完了しました"
+
+cache:
+  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$(codebuild-hash-files package-lock.json)-$(codebuild-hash-files uv.lock)
+  paths:
+    - '/root/.cache/pip/**/*'
+    - '/root/.cache/uv/**/*'
+    - '/root/.cargo/**/*'
+    - '/root/.npm/**/*'
+    - '/root/.asdf/**/*'
+    - '/root/.local/bin/**/*'
+    - 'node_modules/**/*'
+    - 'cdk/node_modules/**/*'

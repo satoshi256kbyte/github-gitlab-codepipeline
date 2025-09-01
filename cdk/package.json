@@ -1,0 +1,28 @@
+{
+    "name": "cicd-pipeline-comparison-cdk",
+    "version": "1.0.0",
+    "description": "AWS CDK infrastructure for CI/CD pipeline comparison project",
+    "main": "app.js",
+    "scripts": {
+        "build": "tsc",
+        "watch": "tsc -w",
+        "test": "jest",
+        "cdk": "cdk",
+        "lint": "eslint . --ext .ts",
+        "lint:fix": "eslint . --ext .ts --fix"
+    },
+    "devDependencies": {
+        "@types/jest": "^29.5.0",
+        "@types/node": "^20.0.0",
+        "@typescript-eslint/eslint-plugin": "^6.0.0",
+        "@typescript-eslint/parser": "^6.0.0",
+        "eslint": "^8.0.0",
+        "jest": "^29.5.0",
+        "ts-jest": "^29.1.0",
+        "typescript": "^5.0.0"
+    },
+    "dependencies": {
+        "aws-cdk-lib": "^2.100.0",
+        "constructs": "^10.3.0"
+    }
+}

@@ -1,0 +1,134 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - bash codepipeline/buildspecs/common_install.sh
+
+  pre_build:
+    commands:
+      - bash codepipeline/buildspecs/common_pre_build.sh
+
+  build:
+    commands:
+      - . codepipeline/buildspecs/common_env.sh
+      - echo "EC2 CodeDeploy Blue/Greenデプロイを開始..."
+      
+      # アプリケーションファイルの準備
+      - echo "アプリケーションファイルを準備中..."
+      - |
+        # デプロイ用のアーティファクトを作成
+        mkdir -p deploy-package
+        cp -r modules/api/* deploy-package/
+        
+        # appspec.ymlの存在確認
+        if [ ! -f "appspec.yml" ]; then
+          echo "エラー: appspec.ymlが見つかりません"
+          exit 1
+        fi
+        
+        cp appspec.yml deploy-package/
+        
+        # デプロイスクリプトをコピー
+        if [ -d "scripts" ]; then
+          cp -r scripts deploy-package/
+        fi
+      
+      # デプロイパッケージの作成
+      - echo "デプロイパッケージを作成中..."
+      - cd deploy-package
+      - zip -r ../deploy-package.zip .
+      - cd ..
+      
+      # S3にアップロード
+      - echo "デプロイパッケージをS3にアップロード中..."
+      - BUCKET_NAME="${SERVICE_NAME}-${STAGE_NAME}-codedeploy-artifacts"
+      - OBJECT_KEY="ec2-deploy-$(date +%Y%m%d%H%M%S).zip"
+      - aws s3 cp deploy-package.zip s3://$BUCKET_NAME/$OBJECT_KEY
+
+  post_build:
+    commands:
+      # CodeDeployデプロイメントの作成
+      - echo "CodeDeployデプロイメントを作成中..."
+      - |
+        cat > deployment.json << EOF
+        {
+            "applicationName": "$APPLICATION_NAME",
+            "deploymentGroupName": "$DEPLOYMENT_GROUP",
+            "deploymentConfigName": "CodeDeployDefault.EC2AllAtOnceBlueGreen",
+            "revision": {
+                "revisionType": "S3",
+                "s3Location": {
+                    "bucket": "$BUCKET_NAME",
+                    "key": "$OBJECT_KEY",
+                    "bundleType": "zip"
+                }
+            },
+            "description": "EC2 Blue/Green deployment from CodePipeline"
+        }
+        EOF
+      
+      - DEPLOYMENT_ID=$(aws deploy create-deployment --cli-input-json file://deployment.json --region $AWS_DEFAULT_REGION --query "deploymentId" --output text)
+      - echo "DEPLOYMENT_ID=$DEPLOYMENT_ID"
+      
+      # デプロイメント完了まで待機
+      - echo "デプロイメント完了まで待機中..."
+      - |
+        TIMEOUT=${DEPLOYMENT_TIMEOUT}
+        INTERVAL=30
+        ELAPSED=0
+
+        while true; do
+          STATUS=$(aws deploy get-deployment --deployment-id "$DEPLOYMENT_ID" --region $AWS_DEFAULT_REGION --query "deploymentInfo.status" --output text)
+
+          echo "[$ELAPSED sec] デプロイメント状態: $STATUS"
+
+          if [[ "$STATUS" == "Succeeded" ]]; then
+            echo "デプロイメントが成功しました。"
+            break
+          fi
+
+          if [[ "$STATUS" == "Failed" || "$STATUS" == "Stopped" ]]; then
+            echo "デプロイメントが失敗または停止されました。"
+            exit 1
+          fi
+
+          if [[ $ELAPSED -ge $TIMEOUT ]]; then
+            echo "デプロイメントが${TIMEOUT}秒のタイムアウト時間内に完了しませんでした。"
+            echo "CodeDeployコンソールでデプロイメントを停止してください。"
+            exit 1
+          fi
+
+          sleep $INTERVAL
+          ELAPSED=$((ELAPSED + INTERVAL))
+        done
+      
+      - echo "EC2デプロイが正常に完了しました"
+      
+      # ヘルスチェック
+      - |
+        # ALBのDNS名を取得してヘルスチェック
+        ALB_DNS=$(aws elbv2 describe-load-balancers \
+          --names "${SERVICE_NAME}-${STAGE_NAME}-alb-ec2" \
+          --region $AWS_DEFAULT_REGION \
+          --query 'LoadBalancers[0].DNSName' \
+          --output text 2>/dev/null || echo "")
+        
+        if [ -n "$ALB_DNS" ] && [ "$ALB_DNS" != "None" ]; then
+          echo "ALB DNS: $ALB_DNS"
+          echo "ヘルスチェックを実行中..."
+          sleep 30  # ALBのヘルスチェックが安定するまで待機
+          curl -f "http://$ALB_DNS/health" || echo "ヘルスチェック失敗"
+        fi
+
+cache:
+  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$(codebuild-hash-files package-lock.json)-$(codebuild-hash-files uv.lock)
+  paths:
+    - '/root/.cache/pip/**/*'
+    - '/root/.cache/uv/**/*'
+    - '/root/.cargo/**/*'
+    - '/root/.npm/**/*'
+    - '/root/.asdf/**/*'
+    - '/root/.local/bin/**/*'
+    - 'node_modules/**/*'
+    - 'cdk/node_modules/**/*'

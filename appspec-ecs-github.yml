@@ -1,0 +1,35 @@
+version: 0.0
+Resources:
+  - TargetService:
+      Type: AWS::ECS::Service
+      Properties:
+        TaskDefinition: "<TASK_DEFINITION>"
+        LoadBalancerInfo:
+          ContainerName: "github-local-api-container"
+          ContainerPort: 8000
+        PlatformVersion: "LATEST"
+Hooks:
+  - BeforeInstall:
+      - Location: "scripts/before_install.sh"
+        Timeout: 300
+        Runas: root
+  - AfterInstall:
+      - Location: "scripts/after_install.sh"
+        Timeout: 300
+        Runas: root
+  - ApplicationStart:
+      - Location: "scripts/application_start.sh"
+        Timeout: 300
+        Runas: root
+  - ApplicationStop:
+      - Location: "scripts/application_stop.sh"
+        Timeout: 300
+        Runas: root
+  - BeforeAllowTraffic:
+      - Location: "scripts/before_allow_traffic.sh"
+        Timeout: 300
+        Runas: root
+  - AfterAllowTraffic:
+      - Location: "scripts/after_allow_traffic.sh"
+        Timeout: 300
+        Runas: root

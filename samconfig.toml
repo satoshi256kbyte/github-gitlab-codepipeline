@@ -1,0 +1,106 @@
+version = 0.1
+
+# GitHub Actions専用設定
+[github]
+[github.global.parameters]
+stack_name = "github-local-sam-stack"
+
+[github.build.parameters]
+cached = true
+parallel = true
+
+[github.validate.parameters]
+lint = true
+
+[github.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = false
+resolve_s3 = true
+s3_prefix = "github-local-lambda"
+region = "us-east-1"
+parameter_overrides = "Environment=local CicdTool=github"
+image_repositories = []
+
+[github.package.parameters]
+resolve_s3 = true
+
+# GitLab CI/CD専用設定
+[gitlab]
+[gitlab.global.parameters]
+stack_name = "gitlab-local-sam-stack"
+
+[gitlab.build.parameters]
+cached = true
+parallel = true
+
+[gitlab.validate.parameters]
+lint = true
+
+[gitlab.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = false
+resolve_s3 = true
+s3_prefix = "gitlab-local-lambda"
+region = "us-east-1"
+parameter_overrides = "Environment=local CicdTool=gitlab"
+image_repositories = []
+
+[gitlab.package.parameters]
+resolve_s3 = true
+
+# CodePipeline専用設定
+[codepipeline]
+[codepipeline.global.parameters]
+stack_name = "codepipeline-local-sam-stack"
+
+[codepipeline.build.parameters]
+cached = true
+parallel = true
+
+[codepipeline.validate.parameters]
+lint = true
+
+[codepipeline.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = false
+resolve_s3 = true
+s3_prefix = "codepipeline-local-lambda"
+region = "us-east-1"
+parameter_overrides = "Environment=local CicdTool=codepipeline"
+image_repositories = []
+
+[codepipeline.package.parameters]
+resolve_s3 = true
+
+# 共通設定（ローカル開発用）
+[default]
+[default.global.parameters]
+stack_name = "cicd-comparison-lambda-stack"
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.validate.parameters]
+lint = true
+
+[default.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = false
+resolve_s3 = true
+s3_prefix = "cicd-comparison-lambda"
+region = "us-east-1"
+parameter_overrides = "Environment=local CicdTool=codepipeline"
+image_repositories = []
+
+[default.package.parameters]
+resolve_s3 = true
+
+[default.sync.parameters]
+watch = true
+
+[default.local_start_api.parameters]
+warm_containers = "EAGER"
+
+[default.local_start_lambda.parameters]
+warm_containers = "EAGER"

@@ -1,0 +1,68 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - bash codepipeline/buildspecs/common_install.sh
+
+  pre_build:
+    commands:
+      - bash codepipeline/buildspecs/common_pre_build.sh
+
+  build:
+    commands:
+      - . codepipeline/buildspecs/common_env.sh
+      - echo "AWS SAMによるLambdaデプロイを開始..."
+
+      # SAMテンプレートの存在確認
+      - |
+        if [ ! -f "template.yaml" ]; then
+          echo "エラー: template.yamlが見つかりません"
+          exit 1
+        fi
+
+      # SAMビルド
+      - echo "SAMアプリケーションをビルド中..."
+      - sam build --use-container
+
+      # SAMデプロイ
+      - echo "SAMアプリケーションをデプロイ中..."
+      - |
+        sam deploy \
+          --stack-name "${SERVICE_NAME}-${STAGE_NAME}-lambda-stack" \
+          --capabilities CAPABILITY_IAM \
+          --region $AWS_DEFAULT_REGION \
+          --no-confirm-changeset \
+          --no-fail-on-empty-changeset \
+          --parameter-overrides \
+            Environment=$STAGE_NAME \
+            ServiceName=$SERVICE_NAME
+
+  post_build:
+    commands:
+      - echo "Lambdaデプロイが正常に完了しました"
+      - |
+        # デプロイされたAPIのエンドポイントを取得
+        API_ENDPOINT=$(aws cloudformation describe-stacks \
+          --stack-name "${SERVICE_NAME}-${STAGE_NAME}-lambda-stack" \
+          --region $AWS_DEFAULT_REGION \
+          --query 'Stacks[0].Outputs[?OutputKey==`ApiEndpoint`].OutputValue' \
+          --output text 2>/dev/null || echo "")
+
+        if [ -n "$API_ENDPOINT" ]; then
+          echo "API エンドポイント: $API_ENDPOINT"
+          echo "ヘルスチェックを実行中..."
+          curl -f "$API_ENDPOINT/health" || echo "ヘルスチェック失敗"
+        fi
+
+cache:
+  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$(codebuild-hash-files package-lock.json)-$(codebuild-hash-files uv.lock)
+  paths:
+    - "/root/.cache/pip/**/*"
+    - "/root/.cache/uv/**/*"
+    - "/root/.cargo/**/*"
+    - "/root/.npm/**/*"
+    - "/root/.asdf/**/*"
+    - "/root/.local/bin/**/*"
+    - "node_modules/**/*"
+    - "cdk/node_modules/**/*"

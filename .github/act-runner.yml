@@ -1,0 +1,28 @@
+# GitHub Actions ローカル実行用のランナー設定
+# actツールで使用するDockerコンテナの詳細設定
+
+version: '3.8'
+
+services:
+  act-runner:
+    image: catthehacker/ubuntu:act-latest
+    container_name: github-actions-local-runner
+    volumes:
+      - .:/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ~/.aws:/root/.aws:ro
+      - ~/.gitconfig:/root/.gitconfig:ro
+    working_dir: /workspace
+    environment:
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    networks:
+      - act-network
+    privileged: false
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+
+networks:
+  act-network:
+    driver: bridge

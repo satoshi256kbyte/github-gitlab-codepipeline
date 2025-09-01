@@ -1,0 +1,539 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  AWS_REGION: us-east-1
+  SERVICE_NAME: cicd-comparison
+  STAGE_NAME: local
+  CICD_TOOL: github
+  PYTHON_VERSION: "3.13"
+
+jobs:
+  # キャッシュ作成ジョブ
+  cache:
+    name: Create Cache
+    runs-on: ubuntu-latest
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.key }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate cache key
+        id: cache-key
+        run: |
+          CACHE_KEY="cache-$(sha256sum .tool-versions package-lock.json uv.lock | sha256sum | cut -d' ' -f1)"
+          echo "key=$CACHE_KEY" >> $GITHUB_OUTPUT
+          echo "Cache key: $CACHE_KEY"
+
+      - name: Setup asdf
+        uses: asdf-vm/actions/setup@v3
+
+      - name: Install tools via asdf
+        run: |
+          asdf plugin add python
+          asdf plugin add nodejs
+          asdf install
+
+      - name: Setup uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/uv
+            ~/.cargo
+            ~/.npm
+            ~/.asdf
+            ~/.local/bin
+            node_modules
+          key: ${{ steps.cache-key.outputs.key }}
+
+      - name: Install Python dependencies
+        run: |
+          uv sync --dev
+
+      - name: Install Node.js dependencies
+        working-directory: cdk
+        run: npm install
+
+  # 静的解析ジョブ
+  lint:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+    needs: cache
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/uv
+            ~/.cargo
+            ~/.npm
+            ~/.asdf
+            ~/.local/bin
+            node_modules
+          key: ${{ needs.cache.outputs.cache-key }}
+
+      - name: Setup asdf
+        uses: asdf-vm/actions/setup@v3
+
+      - name: Install tools via asdf
+        run: asdf install
+
+      - name: Setup uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Run linting
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+  # ユニットテストジョブ
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: cache
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/uv
+            ~/.cargo
+            ~/.npm
+            ~/.asdf
+            ~/.local/bin
+            node_modules
+          key: ${{ needs.cache.outputs.cache-key }}
+
+      - name: Setup asdf
+        uses: asdf-vm/actions/setup@v3
+
+      - name: Install tools via asdf
+        run: asdf install
+
+      - name: Setup uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Run tests
+        run: |
+          uv run pytest modules/api/tests/ -v --cov=modules/api --cov-report=xml
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+  # SCAチェックジョブ（Dependabot + CodeGuru Security）
+  sca:
+    name: SCA Security Check (Dependabot + CodeGuru)
+    runs-on: ubuntu-latest
+    needs: cache
+    permissions:
+      security-events: write
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/uv
+            ~/.cargo
+            ~/.npm
+            ~/.asdf
+            ~/.local/bin
+            node_modules
+          key: ${{ needs.cache.outputs.cache-key }}
+
+      - name: Setup asdf
+        uses: asdf-vm/actions/setup@v3
+
+      - name: Install tools via asdf
+        run: asdf install
+
+      - name: Setup uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Export requirements for CodeGuru Security
+        run: |
+          uv export --all-packages --no-dev --frozen --no-editable -o requirements.txt --no-emit-workspace --no-hashes --no-header
+
+      - name: Check for Dependabot alerts
+        run: |
+          echo "Dependabot automatically scans for vulnerabilities in dependencies"
+          echo "Check the Security tab in GitHub repository for Dependabot alerts"
+          echo "This step represents the Dependabot SCA scanning process"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Run CodeGuru Security SCA scan
+        run: |
+          SCAN_NAME="${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-sca-$(date +%s)"
+          echo "Running CodeGuru Security SCA scan: $SCAN_NAME"
+          bash ./scripts/run_codeguru_security.sh $SCAN_NAME . ${{ env.AWS_REGION }}
+
+          # 脆弱性チェック
+          if [ -f "$SCAN_NAME.json" ]; then
+            CRITICAL_COUNT=$(jq '[.findings[] | select(.severity == "Critical")] | length' $SCAN_NAME.json)
+            HIGH_COUNT=$(jq '[.findings[] | select(.severity == "High")] | length' $SCAN_NAME.json)
+            
+            echo "SCA - Critical vulnerabilities: $CRITICAL_COUNT"
+            echo "SCA - High vulnerabilities: $HIGH_COUNT"
+            
+            if [ "$CRITICAL_COUNT" -gt 0 ]; then
+              echo "ERROR: Found $CRITICAL_COUNT critical vulnerabilities in SCA scan"
+              exit 1
+            fi
+          fi
+
+  # SASTチェックジョブ（CodeQL + CodeGuru Security）
+  sast:
+    name: SAST Security Check (CodeQL + CodeGuru)
+    runs-on: ubuntu-latest
+    needs: cache
+    permissions:
+      security-events: write
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/uv
+            ~/.cargo
+            ~/.npm
+            ~/.asdf
+            ~/.local/bin
+            node_modules
+          key: ${{ needs.cache.outputs.cache-key }}
+
+      - name: Setup asdf
+        uses: asdf-vm/actions/setup@v3
+
+      - name: Install tools via asdf
+        run: asdf install
+
+      - name: Setup uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Run CodeGuru Security SAST scan
+        run: |
+          SCAN_NAME="${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-sast-$(date +%s)"
+          echo "Running CodeGuru Security SAST scan: $SCAN_NAME"
+          zip -r /tmp/source-code.zip . -x "*.git*" "node_modules/*" "*.pyc" "__pycache__/*" ".venv/*"
+          bash ./scripts/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip ${{ env.AWS_REGION }}
+
+          # 脆弱性チェック
+          if [ -f "$SCAN_NAME.json" ]; then
+            CRITICAL_COUNT=$(jq '[.findings[] | select(.severity == "Critical")] | length' $SCAN_NAME.json)
+            HIGH_COUNT=$(jq '[.findings[] | select(.severity == "High")] | length' $SCAN_NAME.json)
+
+            echo "SAST - Critical vulnerabilities: $CRITICAL_COUNT"
+            echo "SAST - High vulnerabilities: $HIGH_COUNT"
+
+            if [ "$CRITICAL_COUNT" -gt 0 ]; then
+              echo "ERROR: Found $CRITICAL_COUNT critical vulnerabilities in SAST scan"
+              exit 1
+            fi
+          fi
+
+  # AWS Lambdaデプロイジョブ
+  deploy-lambda:
+    name: Deploy to AWS Lambda
+    runs-on: ubuntu-latest
+    needs: [lint, test, sca, sast]
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup asdf
+        uses: asdf-vm/actions/setup@v3
+
+      - name: Install tools via asdf
+        run: asdf install
+
+      - name: Setup uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install SAM CLI
+        uses: aws-actions/setup-sam@v2
+
+      - name: Build SAM application
+        run: |
+          sam build --template-file template-github.yaml --use-container
+
+      - name: Deploy to Lambda
+        run: |
+          sam deploy --template-file template-github.yaml \
+            --no-confirm-changeset --no-fail-on-empty-changeset \
+            --stack-name ${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-lambda \
+            --capabilities CAPABILITY_IAM \
+            --region ${{ env.AWS_REGION }} \
+            --parameter-overrides \
+              Environment=${{ env.STAGE_NAME }} \
+              ServiceName=${{ env.SERVICE_NAME }} \
+              CicdTool=${{ env.CICD_TOOL }}
+
+  # ECS Blue/Greenデプロイジョブ
+  deploy-ecs:
+    name: Deploy to ECS (Blue/Green)
+    runs-on: ubuntu-latest
+    needs: [lint, test, sca, sast]
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-api
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG modules/api/
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_ENV
+
+      - name: Update task definition
+        run: |
+          # GitHub Actions専用のtaskdef.jsonを使用
+          cp taskdef-github.json taskdef-temp.json
+          sed -i "s|<IMAGE1_NAME>|${{ env.IMAGE_URI }}|g" taskdef-temp.json
+
+      - name: Register new task definition
+        run: |
+          TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file://taskdef-temp.json \
+            --region ${{ env.AWS_REGION }} \
+            --query "taskDefinition.taskDefinitionArn" \
+            --output text)
+          echo "TASK_DEF_ARN=$TASK_DEF_ARN" >> $GITHUB_ENV
+
+      - name: Update appspec for ECS
+        run: |
+          # GitHub Actions専用のappspec.ymlを使用
+          cp appspec-ecs-github.yml appspec-temp.yml
+          sed -i "s|\"<TASK_DEFINITION>\"|\"${{ env.TASK_DEF_ARN }}\"|g" appspec-temp.yml
+
+      - name: Deploy to ECS using CodeDeploy
+        run: |
+          CONTENT=$(cat appspec-temp.yml | jq -Rs .)
+          SHA256=$(cat appspec-temp.yml | sha256sum | awk '{print $1}')
+
+          cat > deployment.json << EOF
+          {
+              "applicationName": "${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-ecs-app",
+              "deploymentGroupName": "${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-ecs-dg",
+              "deploymentConfigName": "CodeDeployDefault.ECSAllAtOnce",
+              "revision": {
+                  "revisionType": "AppSpecContent",
+                  "appSpecContent": {
+                      "content": $CONTENT,
+                      "sha256": "$SHA256"
+                  }
+              }
+          }
+          EOF
+
+          DEPLOYMENT_ID=$(aws deploy create-deployment \
+            --cli-input-json file://deployment.json \
+            --region ${{ env.AWS_REGION }} \
+            --query "deploymentId" \
+            --output text)
+
+          echo "Deployment ID: $DEPLOYMENT_ID"
+
+          # デプロイメント完了まで待機
+          TIMEOUT=1800
+          INTERVAL=30
+          ELAPSED=0
+
+          while true; do
+            STATUS=$(aws deploy get-deployment \
+              --deployment-id "$DEPLOYMENT_ID" \
+              --region ${{ env.AWS_REGION }} \
+              --query "deploymentInfo.status" \
+              --output text)
+            
+            echo "[$ELAPSED sec] Deployment status: $STATUS"
+            
+            if [[ "$STATUS" == "Succeeded" ]]; then
+              echo "Deployment succeeded."
+              break
+            fi
+            
+            if [[ "$STATUS" == "Failed" || "$STATUS" == "Stopped" ]]; then
+              echo "Deployment failed or was stopped."
+              exit 1
+            fi
+            
+            if [[ $ELAPSED -ge $TIMEOUT ]]; then
+              echo "Deployment timeout after $TIMEOUT seconds."
+              exit 1
+            fi
+            
+            sleep $INTERVAL
+            ELAPSED=$((ELAPSED + INTERVAL))
+          done
+
+  # EC2 CodeDeployデプロイジョブ
+  deploy-ec2:
+    name: Deploy to EC2 (Blue/Green)
+    runs-on: ubuntu-latest
+    needs: [lint, test, sca, sast]
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Create deployment package
+        run: |
+          # GitHub Actions専用のappspec.ymlを使用
+          cp appspec-ec2-github.yml appspec.yml
+          zip -r deployment-package.zip . \
+            -x "*.git*" "node_modules/*" "*.pyc" "__pycache__/*" ".venv/*" \
+            "cdk.out/*" "*.zip" "appspec-*"
+
+      - name: Upload to S3
+        run: |
+          BUCKET_NAME="${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-deployments"
+          S3_KEY="ec2-deployments/${{ github.sha }}/deployment-package.zip"
+
+          aws s3 cp deployment-package.zip s3://$BUCKET_NAME/$S3_KEY
+          echo "S3_LOCATION=s3://$BUCKET_NAME/$S3_KEY" >> $GITHUB_ENV
+
+      - name: Deploy to EC2 using CodeDeploy
+        run: |
+          DEPLOYMENT_ID=$(aws deploy create-deployment \
+            --application-name "${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-ec2-app" \
+            --deployment-group-name "${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-ec2-dg" \
+            --deployment-config-name "CodeDeployDefault.EC2AllAtOnceBlueGreen" \
+            --s3-location bucket="${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-deployments",key="ec2-deployments/${{ github.sha }}/deployment-package.zip",bundleType=zip \
+            --region ${{ env.AWS_REGION }} \
+            --query "deploymentId" \
+            --output text)
+
+          echo "Deployment ID: $DEPLOYMENT_ID"
+
+          # デプロイメント完了まで待機
+          TIMEOUT=1800
+          INTERVAL=30
+          ELAPSED=0
+
+          while true; do
+            STATUS=$(aws deploy get-deployment \
+              --deployment-id "$DEPLOYMENT_ID" \
+              --region ${{ env.AWS_REGION }} \
+              --query "deploymentInfo.status" \
+              --output text)
+            
+            echo "[$ELAPSED sec] Deployment status: $STATUS"
+            
+            if [[ "$STATUS" == "Succeeded" ]]; then
+              echo "Deployment succeeded."
+              break
+            fi
+            
+            if [[ "$STATUS" == "Failed" || "$STATUS" == "Stopped" ]]; then
+              echo "Deployment failed or was stopped."
+              exit 1
+            fi
+            
+            if [[ $ELAPSED -ge $TIMEOUT ]]; then
+              echo "Deployment timeout after $TIMEOUT seconds."
+              exit 1
+            fi
+            
+            sleep $INTERVAL
+            ELAPSED=$((ELAPSED + INTERVAL))
+          done

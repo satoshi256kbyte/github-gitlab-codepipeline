@@ -1,0 +1,44 @@
+# GitLab CI/CD共通テンプレート
+
+# 共通変数
+.common_variables: &common_variables
+  SERVICE_NAME: "cicd-comparison"
+  STAGE_NAME: "local"
+  AWS_DEFAULT_REGION: "ap-northeast-1"
+
+# 共通設定
+.common_setup: &common_setup
+  image: ubuntu:22.04
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq git curl unzip jq zip
+    - echo "Common setup completed"
+
+# AWS認証設定
+.aws_auth: &aws_auth
+  before_script:
+    - !reference [.common_setup, before_script]
+    - echo "Setting up AWS authentication..."
+    - curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    - unzip -q awscliv2.zip
+    - ./aws/install
+    - aws --version
+    - aws sts get-caller-identity
+
+# 失敗時の処理
+.on_failure: &on_failure
+  after_script:
+    - |
+      if [ $CI_JOB_STATUS = "failed" ]; then
+        echo "=== Job Failure Analysis ==="
+        echo "Job: $CI_JOB_NAME"
+        echo "Stage: $CI_JOB_STAGE"
+        echo "Commit: $CI_COMMIT_SHA"
+        echo "Branch: $CI_COMMIT_REF_NAME"
+        echo "Possible causes:"
+        echo "- Static analysis failure"
+        echo "- Unit test failure"
+        echo "- Security vulnerability found"
+        echo "- Deployment failure"
+        echo "=========================="
+      fi

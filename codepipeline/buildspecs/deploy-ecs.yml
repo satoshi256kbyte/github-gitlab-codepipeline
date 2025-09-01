@@ -1,0 +1,132 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - bash codepipeline/buildspecs/common_install.sh
+
+  pre_build:
+    commands:
+      - bash codepipeline/buildspecs/common_pre_build.sh
+      
+      # ECRリポジトリURLの構築
+      - echo "ECRリポジトリURLを構築中..."
+      - RepositoryUri=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME
+      - echo "RepositoryUri=$RepositoryUri"
+      
+      # ECRログイン
+      - echo "ECRにログイン中..."
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+
+  build:
+    commands:
+      - . codepipeline/buildspecs/common_env.sh
+      - echo "ECS Blue/Greenデプロイを開始..."
+      
+      # Dockerイメージのビルド
+      - echo "Dockerイメージをビルド中..."
+      - IMAGE_TAG=$(date +%Y%m%d%H%M%S)-$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - ImageURI=$RepositoryUri:$IMAGE_TAG
+      - echo "ImageURI=$ImageURI"
+      
+      - docker build -t $ImageURI modules/api/
+      
+      # イメージをECRにプッシュ
+      - echo "イメージをECRにプッシュ中..."
+      - docker push $ImageURI
+      
+      # タスク定義の更新
+      - echo "タスク定義を更新中..."
+      - |
+        if [ ! -f "taskdef.json" ]; then
+          echo "エラー: taskdef.jsonが見つかりません"
+          exit 1
+        fi
+      
+      - sed -i "s|<IMAGE1_NAME>|$ImageURI|g" taskdef.json
+      
+      # タスク定義の登録
+      - echo "タスク定義を登録中..."
+      - TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json file://taskdef.json --region $AWS_DEFAULT_REGION --query "taskDefinition.taskDefinitionArn" --output text)
+      - echo "TASK_DEF_ARN=$TASK_DEF_ARN"
+      
+      # appspec.ymlの更新
+      - echo "appspec.ymlを更新中..."
+      - |
+        if [ ! -f "appspec.yml" ]; then
+          echo "エラー: appspec.ymlが見つかりません"
+          exit 1
+        fi
+      
+      - sed -i "s|\"<TASK_DEFINITION>\"|\"$TASK_DEF_ARN\"|g" appspec.yml
+
+  post_build:
+    commands:
+      # CodeDeployデプロイメントの作成
+      - echo "CodeDeployデプロイメントを作成中..."
+      - CONTENT=$(cat appspec.yml | jq -Rs .)
+      - SHA256=$(cat appspec.yml | sha256sum | awk '{print $1}')
+      - |
+        cat > deployment.json << EOF
+        {
+            "applicationName": "$APPLICATION_NAME",
+            "deploymentGroupName": "$DEPLOYMENT_GROUP",
+            "deploymentConfigName": "CodeDeployDefault.ECSAllAtOnce",
+            "revision": {
+                "revisionType": "AppSpecContent",
+                "appSpecContent": {
+                    "content": $CONTENT,
+                    "sha256": "$SHA256"
+                }
+            }
+        }
+        EOF
+      
+      - DEPLOYMENT_ID=$(aws deploy create-deployment --cli-input-json file://deployment.json --region $AWS_DEFAULT_REGION --query "deploymentId" --output text)
+      - echo "DEPLOYMENT_ID=$DEPLOYMENT_ID"
+      
+      # デプロイメント完了まで待機
+      - echo "デプロイメント完了まで待機中..."
+      - |
+        TIMEOUT=${DEPLOYMENT_TIMEOUT}
+        INTERVAL=30
+        ELAPSED=0
+
+        while true; do
+          STATUS=$(aws deploy get-deployment --deployment-id "$DEPLOYMENT_ID" --region $AWS_DEFAULT_REGION --query "deploymentInfo.status" --output text)
+
+          echo "[$ELAPSED sec] デプロイメント状態: $STATUS"
+
+          if [[ "$STATUS" == "Succeeded" ]]; then
+            echo "デプロイメントが成功しました。"
+            break
+          fi
+
+          if [[ "$STATUS" == "Failed" || "$STATUS" == "Stopped" ]]; then
+            echo "デプロイメントが失敗または停止されました。"
+            exit 1
+          fi
+
+          if [[ $ELAPSED -ge $TIMEOUT ]]; then
+            echo "デプロイメントが${TIMEOUT}秒のタイムアウト時間内に完了しませんでした。"
+            echo "CodeDeployコンソールでデプロイメントを停止してください。"
+            exit 1
+          fi
+
+          sleep $INTERVAL
+          ELAPSED=$((ELAPSED + INTERVAL))
+        done
+      
+      - echo "ECSデプロイが正常に完了しました"
+
+cache:
+  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$(codebuild-hash-files package-lock.json)-$(codebuild-hash-files uv.lock)
+  paths:
+    - '/root/.cache/pip/**/*'
+    - '/root/.cache/uv/**/*'
+    - '/root/.cargo/**/*'
+    - '/root/.npm/**/*'
+    - '/root/.asdf/**/*'
+    - '/root/.local/bin/**/*'
+    - 'node_modules/**/*'
+    - 'cdk/node_modules/**/*'

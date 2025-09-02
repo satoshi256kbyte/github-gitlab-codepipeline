@@ -6,12 +6,14 @@ set -e
 
 echo "=== 共通プリビルド開始 ==="
 
-# 環境変数の設定
-export PATH="$HOME/.asdf/bin:$HOME/.cargo/bin:$PATH"
-
-# asdfが存在する場合のみ読み込み
+# asdfの環境設定（installフェーズでインストール済み）
 if [ -f "$HOME/.asdf/asdf.sh" ]; then
+    echo "asdf環境を読み込み中..."
+    export PATH="$HOME/.asdf/bin:$HOME/.cargo/bin:$PATH"
     source ~/.asdf/asdf.sh
+else
+    echo "警告: asdfが見つかりません。システムのPythonを使用します。"
+    export PATH="$HOME/.cargo/bin:$PATH"
 fi
 
 # 開発依存関係を含むかどうかのフラグ

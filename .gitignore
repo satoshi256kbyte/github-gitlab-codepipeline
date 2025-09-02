@@ -271,3 +271,4 @@ test-results.xml
 !package*.json
 !tsconfig*.json
 !.vscode/*.json
+cdk/app.js

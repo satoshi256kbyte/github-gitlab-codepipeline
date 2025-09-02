@@ -71,9 +71,14 @@ cicdTools.forEach(cicdTool => {
     });
 });
 
+import { parameters } from './parameters';
+
 // CodePipelineスタック
 const pipelineStack = new PipelineStack(app, createResourceName('stack', 'pipeline'), {
     ...commonProps,
+    connectionArn: parameters.connectionArn,
+    repositoryId: parameters.repositoryId,
+    branchName: parameters.branchName,
     description: 'CodePipeline infrastructure for CI/CD comparison project',
 });
 

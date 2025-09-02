@@ -1,71 +1,72 @@
 #!/bin/bash
-# 共通インストールスクリプト
-# 必要なツールとランタイムをインストールする
-
 set -e
 
-echo "=== 共通インストール開始 ==="
+echo "=== Common Install Phase ==="
 
-# システムパッケージの更新
+# パラメータ解析
+SKIP_PYTHON=false
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --skip-python)
+      SKIP_PYTHON=true
+      shift
+      ;;
+    *)
+      echo "Unknown parameter: $1"
+      exit 1
+      ;;
+  esac
+done
+
+# システム依存関係のインストール
+echo "Installing system dependencies..."
 apt-get update
+apt-get install -y curl libbz2-dev libreadline-dev liblzma-dev zlib1g-dev libffi-dev libssl-dev unzip
 
-# 必要なパッケージのインストール
-apt-get install -y \
-    curl \
-    wget \
-    git \
-    unzip \
-    jq \
-    build-essential \
-    libssl-dev \
-    zlib1g-dev \
-    libbz2-dev \
-    libreadline-dev \
-    libsqlite3-dev \
-    libncursesw5-dev \
-    xz-utils \
-    tk-dev \
-    libxml2-dev \
-    libxmlsec1-dev \
-    libffi-dev \
-    liblzma-dev \
-    lsb-release
-
-# asdfのインストール
-echo "asdfをインストール中..."
-if [ ! -d "$HOME/.asdf" ]; then
-    git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.14.0
+# asdfのインストール（キャッシュを活用、整合性チェック付き）
+echo "Installing asdf..."
+if [ ! -d "$HOME/.asdf" ] || [ ! -f "$HOME/.asdf/asdf.sh" ]; then
+  echo "Installing or reinstalling asdf..."
+  rm -rf "$HOME/.asdf"
+  git clone https://github.com/asdf-vm/asdf.git "$HOME/.asdf" --branch v0.14.0
+else
+  echo "asdf already installed and valid - CACHE HIT!"
 fi
 
-# asdfの環境設定を永続化
-export PATH="$HOME/.asdf/bin:$HOME/.cargo/bin:$PATH"
-source ~/.asdf/asdf.sh
+export ASDF_DIR="$HOME/.asdf"
+. "$ASDF_DIR/asdf.sh"
 
-# 環境変数をCodeBuildの環境変数ファイルに保存
-echo "export PATH=\"$HOME/.asdf/bin:$HOME/.cargo/bin:\$PATH\"" >> /tmp/codebuild_env
-echo "source ~/.asdf/asdf.sh" >> /tmp/codebuild_env
-
-# Pythonプラグインの追加
-echo "asdf Pythonプラグインを追加中..."
+# プラグインの追加
+echo "Adding asdf plugins..."
 asdf plugin add python || true
-
-# Node.jsプラグインの追加（CDK用）
-echo "asdf Node.jsプラグインを追加中..."
 asdf plugin add nodejs || true
+asdf plugin add aws-sam-cli || true
 
-# .tool-versionsファイルが存在する場合、指定されたバージョンをインストール
-if [ -f ".tool-versions" ]; then
-    echo ".tool-versionsからランタイムをインストール中..."
-    asdf install
-    asdf reshim
-fi
+# 必要なツールのインストール
+echo "Installing tools via asdf..."
+asdf install
 
-# uvのインストール
-echo "uvをインストール中..."
-if ! command -v uv &> /dev/null; then
+# uvのインストール（Pythonが必要な場合のみ）
+if [ "$SKIP_PYTHON" = false ]; then
+  echo "Installing uv..."
+  if ! command -v uv &> /dev/null; then
     curl -LsSf https://astral.sh/uv/install.sh | sh
-    export PATH="$HOME/.cargo/bin:$PATH"
-    echo "export PATH=\"$HOME/.cargo/bin:\$PATH\"" >> /tmp/codebuild_env
+    source "$HOME/.cargo/env" 2>/dev/null || true
+  fi
+else
+  echo "Skipping uv installation as Python is not needed"
 fi
 
-echo "=== 共通インストール完了 ==="
+# rainのインストール
+echo "Installing rain..."
+if ! command -v rain &> /dev/null; then
+  RAIN_VERSION="1.20.0"
+  mkdir -p "$HOME/.local/bin"
+  curl -L "https://github.com/aws-cloudformation/rain/releases/download/v${RAIN_VERSION}/rain-v${RAIN_VERSION}_linux-amd64.zip" -o rain.zip
+  unzip rain.zip
+  cp rain-v${RAIN_VERSION}_linux-amd64/rain "$HOME/.local/bin/rain"
+  chmod +x "$HOME/.local/bin/rain"
+  rm -rf rain.zip rain-v${RAIN_VERSION}_linux-amd64/
+fi
+
+echo "=== Common Install Phase Completed ==="

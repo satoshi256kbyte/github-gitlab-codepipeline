@@ -11,7 +11,7 @@ phases:
 
   build:
     commands:
-      - source codepipeline/buildspecs/common_env.sh
+      - . codepipeline/buildspecs/common_env.sh
       - echo "Running SCA scan with Amazon CodeGuru Security..."
       - SCAN_NAME="${SERVICE_NAME}-${STAGE_NAME}-sca-$(date +%s)"
       - echo "Scan name: $SCAN_NAME"

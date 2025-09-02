@@ -64,7 +64,7 @@ phases:
 
 artifacts:
   files:
-    - $SCAN_NAME.json
+    - "*.json"
   name: sast-results
 
 cache:

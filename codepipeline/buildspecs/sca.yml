@@ -11,31 +11,31 @@ phases:
 
   build:
     commands:
-      - . codepipeline/buildspecs/common_env.sh
+      - source codepipeline/buildspecs/common_env.sh
       - echo "Running SCA scan with Amazon CodeGuru Security..."
-      - SCAN_NAME="${SERVICE_NAME}-${STAGE_NAME}-sca-$(date +%s)"
-      - echo "Scan name: $SCAN_NAME"
-      - zip -r /tmp/source-code.zip . -x "*.git*" "node_modules/*" "*.pyc" "__pycache__/*" ".venv/*" "cdk/node_modules/*"
-      - bash ./codepipeline/buildspecs/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION
+      - 'SCAN_NAME="${SERVICE_NAME}-${STAGE_NAME}-sca-$(date +%s)"'
+      - 'echo "Scan name: $SCAN_NAME"'
+      - 'zip -r /tmp/source-code.zip . -x "*.git*" "node_modules/*" "*.pyc" "__pycache__/*" ".venv/*" "cdk/node_modules/*"'
+      - 'bash ./codepipeline/buildspecs/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION'
       - echo "SCA scan completed"
 
   post_build:
     commands:
-      - CRITICAL_COUNT=$(jq '[.findings[] | select(.severity == "Critical")] | length' $SCAN_NAME.json)
-      - HIGH_COUNT=$(jq '[.findings[] | select(.severity == "High")] | length' $SCAN_NAME.json)
-      - MEDIUM_COUNT=$(jq '[.findings[] | select(.severity == "Medium")] | length' $SCAN_NAME.json)
-      - LOW_COUNT=$(jq '[.findings[] | select(.severity == "Low")] | length' $SCAN_NAME.json)
+      - 'CRITICAL_COUNT=$(jq "[.findings[] | select(.severity == \"Critical\")] | length" $SCAN_NAME.json)'
+      - 'HIGH_COUNT=$(jq "[.findings[] | select(.severity == \"High\")] | length" $SCAN_NAME.json)'
+      - 'MEDIUM_COUNT=$(jq "[.findings[] | select(.severity == \"Medium\")] | length" $SCAN_NAME.json)'
+      - 'LOW_COUNT=$(jq "[.findings[] | select(.severity == \"Low\")] | length" $SCAN_NAME.json)'
       - echo "--------- SCA Vulnerability Analysis --------"
-      - echo "Critical severity vulnerabilities found: $CRITICAL_COUNT"
-      - echo "High severity vulnerabilities found: $HIGH_COUNT"
-      - echo "Medium severity vulnerabilities found: $MEDIUM_COUNT"
-      - echo "Low severity vulnerabilities found: $LOW_COUNT"
+      - 'echo "Critical severity vulnerabilities found: $CRITICAL_COUNT"'
+      - 'echo "High severity vulnerabilities found: $HIGH_COUNT"'
+      - 'echo "Medium severity vulnerabilities found: $MEDIUM_COUNT"'
+      - 'echo "Low severity vulnerabilities found: $LOW_COUNT"'
       - echo "--------------------------------------------"
       - 'if [ "$CRITICAL_COUNT" -gt 0 ]; then echo "ERROR: Found $CRITICAL_COUNT critical vulnerabilities"; exit 1; fi'
 
 artifacts:
   files:
-    - $SCAN_NAME.json
+    - "*.json"
   name: sca-results
 
 cache:

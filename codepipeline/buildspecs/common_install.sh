@@ -1,26 +1,34 @@
 #!/bin/bash
 # 共通インストールスクリプト
-# CodeBuildで使用する共通のパッケージとツールをインストールする
+# 必要なツールとランタイムをインストールする
 
 set -e
 
 echo "=== 共通インストール開始 ==="
 
 # システムパッケージの更新
-echo "システムパッケージを更新中..."
-apt-get update -y
+apt-get update
 
 # 必要なパッケージのインストール
-echo "必要なパッケージをインストール中..."
 apt-get install -y \
     curl \
     wget \
+    git \
     unzip \
     jq \
-    git \
     build-essential \
-    ca-certificates \
-    gnupg \
+    libssl-dev \
+    zlib1g-dev \
+    libbz2-dev \
+    libreadline-dev \
+    libsqlite3-dev \
+    libncursesw5-dev \
+    xz-utils \
+    tk-dev \
+    libxml2-dev \
+    libxmlsec1-dev \
+    libffi-dev \
+    liblzma-dev \
     lsb-release
 
 # asdfのインストール
@@ -29,11 +37,13 @@ if [ ! -d "$HOME/.asdf" ]; then
     git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.14.0
 fi
 
-# asdfの環境設定
-echo '. "$HOME/.asdf/asdf.sh"' >> ~/.bashrc
-echo '. "$HOME/.asdf/completions/asdf.bash"' >> ~/.bashrc
-export PATH="$HOME/.asdf/bin:$PATH"
+# asdfの環境設定を永続化
+export PATH="$HOME/.asdf/bin:$HOME/.cargo/bin:$PATH"
 source ~/.asdf/asdf.sh
+
+# 環境変数をCodeBuildの環境変数ファイルに保存
+echo "export PATH=\"$HOME/.asdf/bin:$HOME/.cargo/bin:\$PATH\"" >> /tmp/codebuild_env
+echo "source ~/.asdf/asdf.sh" >> /tmp/codebuild_env
 
 # Pythonプラグインの追加
 echo "asdf Pythonプラグインを追加中..."
@@ -50,27 +60,12 @@ if [ -f ".tool-versions" ]; then
     asdf reshim
 fi
 
-# uvのインストール（Python パッケージマネージャー）
+# uvのインストール
 echo "uvをインストール中..."
-curl -LsSf https://astral.sh/uv/install.sh | sh
-export PATH="$HOME/.cargo/bin:$PATH"
-
-# AWS CLIの最新版をインストール（CodeBuildのデフォルトより新しいバージョンが必要な場合）
-echo "AWS CLI v2をインストール中..."
-if ! command -v aws &> /dev/null || [[ $(aws --version 2>&1 | cut -d/ -f2 | cut -d. -f1) -lt 2 ]]; then
-    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-    unzip awscliv2.zip
-    ./aws/install --update
-    rm -rf awscliv2.zip aws/
-fi
-
-# SAM CLIのインストール
-echo "AWS SAM CLIをインストール中..."
-if ! command -v sam &> /dev/null; then
-    wget https://github.com/aws/aws-sam-cli/releases/latest/download/aws-sam-cli-linux-x86_64.zip
-    unzip aws-sam-cli-linux-x86_64.zip -d sam-installation
-    ./sam-installation/install
-    rm -rf aws-sam-cli-linux-x86_64.zip sam-installation/
+if ! command -v uv &> /dev/null; then
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    export PATH="$HOME/.cargo/bin:$PATH"
+    echo "export PATH=\"$HOME/.cargo/bin:\$PATH\"" >> /tmp/codebuild_env
 fi
 
 echo "=== 共通インストール完了 ==="

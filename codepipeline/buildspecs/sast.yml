@@ -3,20 +3,20 @@ version: 0.2
 phases:
   install:
     commands:
-      - bash cicd/buildspecs/common_install.sh
+      - bash codepipeline/buildspecs/common_install.sh
 
   pre_build:
     commands:
-      - bash cicd/buildspecs/common_pre_build.sh --dev
+      - bash codepipeline/buildspecs/common_pre_build.sh --dev
 
   build:
     commands:
-      - . cicd/buildspecs/common_env.sh
+      - . codepipeline/buildspecs/common_env.sh
       - echo "Running SAST scan with Amazon CodeGuru Security..."
       - SCAN_NAME="${SERVICE_NAME}-${STAGE_NAME}-$(date +%s)"
       - echo "Scan name:$SCAN_NAME"
       - zip -r /tmp/source-code.zip . -x "*.git*" "node_modules/*" "*.pyc" "__pycache__/*" ".venv/*"
-      - bash ./cicd/buildspecs/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION
+      - bash ./codepipeline/buildspecs/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION
       - echo "SAST scan completed"
 
   post_build:

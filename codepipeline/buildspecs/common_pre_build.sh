@@ -8,7 +8,11 @@ echo "=== 共通プリビルド開始 ==="
 
 # 環境変数の設定
 export PATH="$HOME/.asdf/bin:$HOME/.cargo/bin:$PATH"
-source ~/.asdf/asdf.sh
+
+# asdfが存在する場合のみ読み込み
+if [ -f "$HOME/.asdf/asdf.sh" ]; then
+    source ~/.asdf/asdf.sh
+fi
 
 # 開発依存関係を含むかどうかのフラグ
 INCLUDE_DEV=${1:-""}

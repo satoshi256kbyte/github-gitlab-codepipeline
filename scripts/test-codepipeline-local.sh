@@ -153,13 +153,13 @@ test_buildspec_phases() {
         "sast")
             test_sast_buildspec
             ;;
-        "deploy-lambda")
+        "deploy_lambda")
             test_deploy_lambda_buildspec
             ;;
         "deploy-ecs")
             test_deploy_ecs_buildspec
             ;;
-        "deploy-ec2")
+        "deploy_ec2")
             test_deploy_ec2_buildspec
             ;;
         *)
@@ -259,9 +259,9 @@ test_sast_buildspec() {
     fi
 }
 
-# Test deploy-lambda buildspec
+# Test deploy_lambda buildspec
 test_deploy_lambda_buildspec() {
-    log_info "Testing deploy-lambda buildspec build phase..."
+    log_info "Testing deploy_lambda buildspec build phase..."
     
     # Check if LocalStack is running
     if ! curl -s "$LOCALSTACK_ENDPOINT/_localstack/health" >/dev/null 2>&1; then
@@ -283,10 +283,10 @@ test_deploy_lambda_buildspec() {
         "codepipeline-${STAGE_NAME}-lambda-api" \
         "lambda-package.zip" \
         "main.handler"; then
-        log_success "Deploy-lambda buildspec build phase completed (LocalStack)"
+        log_success "deploy_lambda buildspec build phase completed (LocalStack)"
         return 0
     else
-        log_error "Deploy-lambda buildspec build phase failed"
+        log_error "deploy_lambda buildspec build phase failed"
         return 1
     fi
 }
@@ -316,9 +316,9 @@ test_deploy_ecs_buildspec() {
     return 0
 }
 
-# Test deploy-ec2 buildspec
+# Test deploy_ec2 buildspec
 test_deploy_ec2_buildspec() {
-    log_info "Testing deploy-ec2 buildspec build phase..."
+    log_info "Testing deploy_ec2 buildspec build phase..."
     
     # Check if LocalStack is running
     if ! curl -s "$LOCALSTACK_ENDPOINT/_localstack/health" >/dev/null 2>&1; then
@@ -338,7 +338,7 @@ test_deploy_ec2_buildspec() {
         return 1
     fi
     
-    log_success "Deploy-ec2 buildspec build phase completed (simulated)"
+    log_success "deploy_ec2 buildspec build phase completed (simulated)"
     return 0
 }
 
@@ -359,7 +359,7 @@ test_all_buildspecs() {
     done
     
     # Test deploy buildspecs separately (they require LocalStack)
-    local deploy_buildspecs=("deploy-lambda" "deploy-ecs" "deploy-ec2")
+    local deploy_buildspecs=("deploy_lambda" "deploy-ecs" "deploy_ec2")
     
     for buildspec in "${deploy_buildspecs[@]}"; do
         if test_buildspec_phases "$buildspec"; then
@@ -413,7 +413,7 @@ OPTIONS:
 EXAMPLES:
     $0                  # Test all buildspecs
     $0 -b lint          # Test only lint buildspec
-    $0 -b deploy-lambda # Test lambda deployment buildspec
+    $0 -b deploy_lambda # Test lambda deployment buildspec
     $0 --list           # List available buildspecs
 
 PREREQUISITES:
@@ -428,9 +428,9 @@ BUILDSPECS:
     - test              # Unit tests
     - sca               # Security composition analysis (skipped locally)
     - sast              # Static application security testing (skipped locally)
-    - deploy-lambda     # Lambda deployment (requires LocalStack)
+    - deploy_lambda     # Lambda deployment (requires LocalStack)
     - deploy-ecs        # ECS deployment (requires LocalStack)
-    - deploy-ec2        # EC2 deployment (requires LocalStack)
+    - deploy_ec2        # EC2 deployment (requires LocalStack)
 
 EOF
 }

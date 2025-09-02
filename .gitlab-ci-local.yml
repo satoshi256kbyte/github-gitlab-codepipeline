@@ -48,7 +48,7 @@ sast:
   script:
     - echo "SAST checks skipped in local environment"
 
-deploy-lambda:
+deploy_lambda:
   stage: deploy
   script:
     - echo "Lambda deployment skipped in local environment"
@@ -62,7 +62,7 @@ deploy-ecs:
   only:
     - main
 
-deploy-ec2:
+deploy_ec2:
   stage: deploy
   script:
     - echo "EC2 deployment skipped in local environment"

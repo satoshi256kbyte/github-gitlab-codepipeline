@@ -665,7 +665,7 @@ cache:
 
 ### Lambda デプロイ
 
-`codepipeline/buildspecs/deploy-lambda.yml`：
+`codepipeline/buildspecs/deploy_lambda.yml`：
 
 ```yaml
 version: 0.2
@@ -767,7 +767,7 @@ cache:
 
 ### EC2 デプロイ
 
-`codepipeline/buildspecs/deploy-ec2.yml`：
+`codepipeline/buildspecs/deploy_ec2.yml`：
 
 ```yaml
 version: 0.2

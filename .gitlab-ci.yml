@@ -37,7 +37,7 @@ variables:
   IMAGE_REPO_NAME: "${CICD_TOOL}-${STAGE_NAME}-ecr-api"
   APPLICATION_NAME: "${CICD_TOOL}-${STAGE_NAME}-codedeploy-ecs"
   DEPLOYMENT_GROUP: "${CICD_TOOL}-${STAGE_NAME}-deployment-group-ecs"
-  APPLICATION_NAME_EC2: "${CICD_TOOL}-${STAGE_NAME}-codedeploy-ec2"
+  APPLICATION_NAME_EC2: "${CICD_TOOL}-${STAGE_NAME}-codedeploy_ec2"
   DEPLOYMENT_GROUP_EC2: "${CICD_TOOL}-${STAGE_NAME}-deployment-group-ec2"
   S3_BUCKET: "${CICD_TOOL}-${STAGE_NAME}-s3-codedeploy"
   ALB_NAME_ECS: "${CICD_TOOL}-${STAGE_NAME}-alb-ecs"
@@ -411,7 +411,7 @@ deploy_ec2:
     - echo "Deploying to GitLab-specific EC2 resources (Port 8081)..."
     
     - echo "Using GitLab EC2 deployment script..."
-    - bash gitlab/scripts/deploy-ec2.sh
+    - bash gitlab/scripts/deploy_ec2.sh
     
     - echo "Verifying GitLab EC2 deployment..."
     - ALB_DNS_EC2=$(aws elbv2 describe-load-balancers --names ${ALB_NAME_EC2} --query "LoadBalancers[0].DNSName" --output text --region $AWS_DEFAULT_REGION)

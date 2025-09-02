@@ -325,7 +325,7 @@ deploy_ec2:
   script:
     - zip -r deployment.zip . -x "*.git*" ".cache/*" ".venv/*" "*.zip"
     - aws s3 cp deployment.zip s3://$DEPLOYMENT_BUCKET/deployments/$CI_COMMIT_SHA.zip
-    - ./scripts/deploy-ec2-codedeploy.sh $CI_COMMIT_SHA
+    - ./scripts/deploy_ec2-codedeploy.sh $CI_COMMIT_SHA
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
 

@@ -295,7 +295,7 @@ jobs:
           fi
 
   # AWS Lambdaデプロイジョブ
-  deploy-lambda:
+  deploy_lambda:
     name: Deploy to AWS Lambda
     runs-on: ubuntu-latest
     needs: [lint, test, sca, sast]
@@ -347,7 +347,7 @@ jobs:
           echo "✅ Lambda deployed to LocalStack: $API_URL"
 
   # EC2 CodeDeployデプロイジョブ
-  deploy-ec2:
+  deploy_ec2:
     name: Deploy to EC2 (Blue/Green)
     runs-on: ubuntu-latest
     needs: [lint, test, sca, sast]

@@ -3,49 +3,52 @@ version: 0.2
 phases:
   install:
     commands:
-      - bash codepipeline/buildspecs/common_install.sh
+      - bash cicd/buildspecs/common_install.sh
 
   pre_build:
     commands:
-      - bash codepipeline/buildspecs/common_pre_build.sh
+      - bash cicd/buildspecs/common_pre_build.sh --dev
 
   build:
     commands:
-      - source codepipeline/buildspecs/common_env.sh
-      - echo "Running SCA scan with Amazon CodeGuru Security..."
-      - 'SCAN_NAME="${SERVICE_NAME}-${STAGE_NAME}-sca-$(date +%s)"'
-      - 'echo "Scan name: $SCAN_NAME"'
-      - 'zip -r /tmp/source-code.zip . -x "*.git*" "node_modules/*" "*.pyc" "__pycache__/*" ".venv/*" "cdk/node_modules/*"'
-      - 'bash ./codepipeline/buildspecs/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION'
-      - echo "SCA scan completed"
+      - . cicd/buildspecs/common_env.sh
+      - echo "Running SAST scan with Amazon CodeGuru Security..."
+      - SCAN_NAME="${SERVICE_NAME}-${STAGE_NAME}-$(date +%s)"
+      - echo "Scan name:$SCAN_NAME"
+      - zip -r /tmp/source-code.zip . -x "*.git*" "node_modules/*" "*.pyc" "__pycache__/*" ".venv/*"
+      - bash ./cicd/buildspecs/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION
+      - echo "SAST scan completed"
 
   post_build:
     commands:
-      - 'CRITICAL_COUNT=$(jq "[.findings[] | select(.severity == \"Critical\")] | length" $SCAN_NAME.json)'
-      - 'HIGH_COUNT=$(jq "[.findings[] | select(.severity == \"High\")] | length" $SCAN_NAME.json)'
-      - 'MEDIUM_COUNT=$(jq "[.findings[] | select(.severity == \"Medium\")] | length" $SCAN_NAME.json)'
-      - 'LOW_COUNT=$(jq "[.findings[] | select(.severity == \"Low\")] | length" $SCAN_NAME.json)'
-      - echo "--------- SCA Vulnerability Analysis --------"
-      - 'echo "Critical severity vulnerabilities found: $CRITICAL_COUNT"'
-      - 'echo "High severity vulnerabilities found: $HIGH_COUNT"'
-      - 'echo "Medium severity vulnerabilities found: $MEDIUM_COUNT"'
-      - 'echo "Low severity vulnerabilities found: $LOW_COUNT"'
-      - echo "--------------------------------------------"
-      - 'if [ "$CRITICAL_COUNT" -gt 0 ]; then echo "ERROR: Found $CRITICAL_COUNT critical vulnerabilities"; exit 1; fi'
+      - CRITICAL_COUNT=$(jq '[.findings[] | select(.severity == "Critical")] | length' $SCAN_NAME.json)
+      - HIGH_COUNT=$(jq '[.findings[] | select(.severity == "High")] | length' $SCAN_NAME.json)
+      - MEDIUM_COUNT=$(jq '[.findings[] | select(.severity == "Medium")] | length' $SCAN_NAME.json)
+      - LOW_COUNT=$(jq '[.findings[] | select(.severity == "Low")] | length' $SCAN_NAME.json)
+      - |
+        echo "--------- Vulnerability analysis --------"
+        echo "Critical severity vulnerabilities found:" $CRITICAL_COUNT
+        echo "High severity vulnerabilities found:" $HIGH_COUNT
+        echo "Medium severity vulnerabilities found:" $MEDIUM_COUNT
+        echo "Low severity vulnerabilities found:" $LOW_COUNT
+        echo "------------------------------------------"
+      - |
+        if [ "$CRITICAL_COUNT" -gt 0 ]; then
+          echo "ERROR: Found $CRITICAL_COUNT critical vulnerabilities"
+          exit 1
+        fi 
 
 artifacts:
-  files:
-    - "*.json"
-  name: sca-results
+    files:
+      - $SCAN_NAME.json
 
 cache:
   key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$(codebuild-hash-files package-lock.json)-$(codebuild-hash-files uv.lock)
   paths:
-    - "/root/.cache/pip/**/*"
-    - "/root/.cache/uv/**/*"
-    - "/root/.cargo/**/*"
-    - "/root/.npm/**/*"
-    - "/root/.asdf/**/*"
-    - "/root/.local/bin/**/*"
-    - "node_modules/**/*"
-    - "cdk/node_modules/**/*"
+    - '/root/.cache/pip/**/*'
+    - '/root/.cache/uv/**/*'
+    - '/root/.cargo/**/*'
+    - '/root/.npm/**/*'
+    - '/root/.asdf/**/*'
+    - '/root/.local/bin/**/*'
+    - 'node_modules/**/*'

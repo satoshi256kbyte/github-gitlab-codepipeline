@@ -90,9 +90,9 @@ GitHub Actions、GitLab CI/CD、AWS CodePipelineの3つのCI/CDツールを使�
   - `sca`: SCAチェック（Dependabot + CodeGuru Security）
   - `sast`: SASTチェック（CodeQL + CodeGuru Security）
 - デプロイジョブ:
-  - `deploy-lambda`: AWS SAMデプロイ
+  - `deploy_lambda`: AWS SAMデプロイ
   - `deploy-ecs`: ECS Blue/Greenデプロイ
-  - `deploy-ec2`: CodeDeploy Blue/Greenデプロイ
+  - `deploy_ec2`: CodeDeploy Blue/Greenデプロイ
 
 **認証**: GitHub OIDC Provider経由でAWS認証
 

@@ -140,13 +140,13 @@ act -j sca
 act -j sast
 
 # デプロイジョブのみ実行（Lambda）
-act -j deploy-lambda
+act -j deploy_lambda
 
 # デプロイジョブのみ実行（ECS）
 act -j deploy-ecs
 
 # デプロイジョブのみ実行（EC2）
-act -j deploy-ec2
+act -j deploy_ec2
 ```
 
 #### デバッグモード
@@ -252,9 +252,9 @@ gitlab-runner exec docker lint
 gitlab-runner exec docker test
 gitlab-runner exec docker sca
 gitlab-runner exec docker sast
-gitlab-runner exec docker deploy-lambda
+gitlab-runner exec docker deploy_lambda
 gitlab-runner exec docker deploy-ecs
-gitlab-runner exec docker deploy-ec2
+gitlab-runner exec docker deploy_ec2
 ```
 
 #### 環境変数の設定

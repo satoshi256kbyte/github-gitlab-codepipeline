@@ -225,7 +225,7 @@ jobs:
           ./scripts/run-inspector-scan.sh
 
   # デプロイ工程（チェック工程完了後に並列実行）
-  deploy-lambda:
+  deploy_lambda:
     name: Lambda デプロイ
     needs: [lint, test, sca, sast]
     runs-on: ubuntu-latest
@@ -286,7 +286,7 @@ jobs:
           # ECSタスク定義の更新とサービスデプロイ
           ./scripts/deploy-ecs-blue-green.sh
 
-  deploy-ec2:
+  deploy_ec2:
     name: EC2 デプロイ
     needs: [lint, test, sca, sast]
     runs-on: ubuntu-latest
@@ -306,7 +306,7 @@ jobs:
       - name: CodeDeploy Blue/Greenデプロイ
         run: |
           # CodeDeployでのデプロイメント実行
-          ./scripts/deploy-ec2-codedeploy.sh
+          ./scripts/deploy_ec2-codedeploy.sh
 ```
 
 ### 環境別ワークフロー

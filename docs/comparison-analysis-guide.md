@@ -278,7 +278,7 @@ CodePipeline:   0.25 (50機能/203行)
 - uses: aws-actions/configure-aws-credentials@v4
   with:
     role-to-assume: arn:aws:iam::123456789012:role/github-actions-role
-    aws-region: us-east-1
+    aws-region: ap-northeast-1
 
 # GitLab CI/CD (変数ベース)
 variables:
@@ -465,7 +465,7 @@ aws iam get-policy-version --policy-arn arn:aws:iam::aws:policy/AWSCodePipelineF
 ```bash
 # 問題: "CREATE_FAILED: Resource handler returned message"
 # 解決策: SAMテンプレート確認
-sam validate --template template.yaml
+sam validate --template template-codepipeline.yaml
 sam build --debug
 sam deploy --debug --no-fail-on-empty-changeset
 ```

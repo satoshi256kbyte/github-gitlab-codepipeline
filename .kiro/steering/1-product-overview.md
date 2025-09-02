@@ -157,7 +157,7 @@ die() { echo "$*" 1>&2 ; exit 1; }
 
 zipName="/tmp/$(date +%s).zip"
 
-[ "$#" -ge 2 ] || die "2 arguments required, $# provided, pass  <scanName>, <folder> and <region> example: ./run_codeguru_security.sh MyScan upload_folder/zipFile us-east-1"
+[ "$#" -ge 2 ] || die "2 arguments required, $# provided, pass  <scanName>, <folder> and <region> example: ./run_codeguru_security.sh MyScan upload_folder/zipFile ap-northeast-1"
 
 if [ ! -d "$fileOrFolder" ] && [ ! -f "$fileOrFolder" ]; then
     die "file or folder doesn't exist"

@@ -196,7 +196,7 @@ gitlab-runner exec docker --docker-image node:18 lint
 ```bash
 # 環境変数を指定して実行
 gitlab-runner exec docker \
-  --env AWS_DEFAULT_REGION=us-east-1 \
+  --env AWS_DEFAULT_REGION=ap-northeast-1 \
   --env STAGE_NAME=dev \
   test
 ```

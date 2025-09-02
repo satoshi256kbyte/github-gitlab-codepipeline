@@ -2,15 +2,17 @@
 アイテムCRUDエンドポイント
 """
 
-from datetime import datetime
-from typing import List, Dict, Any
+from datetime import UTC, datetime
+from typing import Any
+
 from fastapi import APIRouter, HTTPException, status
-from ..models.schemas import Item, ItemCreate, ItemUpdate, ItemList, ErrorResponse
+
+from ..models.schemas import Item, ItemCreate, ItemList, ItemUpdate
 
 router = APIRouter()
 
 # インメモリストレージ（実際のプロジェクトではデータベースを使用）
-items_storage: Dict[int, Dict[str, Any]] = {}
+items_storage: dict[int, dict[str, Any]] = {}
 next_id = 1
 
 
@@ -21,14 +23,16 @@ async def get_items() -> ItemList:
     """
     items = []
     for item_id, item_data in items_storage.items():
-        items.append(Item(
-            id=item_id,
-            name=item_data["name"],
-            description=item_data["description"],
-            created_at=item_data["created_at"],
-            updated_at=item_data.get("updated_at")
-        ))
-    
+        items.append(
+            Item(
+                id=item_id,
+                name=item_data["name"],
+                description=item_data["description"],
+                created_at=item_data["created_at"],
+                updated_at=item_data.get("updated_at"),
+            )
+        )
+
     return ItemList(items=items, total=len(items))
 
 
@@ -40,43 +44,48 @@ async def get_item(item_id: int) -> Item:
     if item_id not in items_storage:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"アイテムID {item_id} が見つかりません"
+            detail=f"アイテムID {item_id} が見つかりません",
         )
-    
+
     item_data = items_storage[item_id]
     return Item(
         id=item_id,
         name=item_data["name"],
         description=item_data["description"],
         created_at=item_data["created_at"],
-        updated_at=item_data.get("updated_at")
+        updated_at=item_data.get("updated_at"),
     )
 
 
-@router.post("/api/items", response_model=Item, status_code=status.HTTP_201_CREATED, tags=["Items"])
+@router.post(
+    "/api/items",
+    response_model=Item,
+    status_code=status.HTTP_201_CREATED,
+    tags=["Items"],
+)
 async def create_item(item: ItemCreate) -> Item:
     """
     アイテム作成
     """
     global next_id
-    
-    current_time = datetime.utcnow()
+
+    current_time = datetime.now(UTC)
     item_data = {
         "name": item.name,
         "description": item.description,
         "created_at": current_time,
-        "updated_at": None
+        "updated_at": None,
     }
-    
+
     items_storage[next_id] = item_data
     created_item = Item(
         id=next_id,
         name=item_data["name"],
         description=item_data["description"],
         created_at=item_data["created_at"],
-        updated_at=item_data["updated_at"]
+        updated_at=item_data["updated_at"],
     )
-    
+
     next_id += 1
     return created_item
 
@@ -89,30 +98,32 @@ async def update_item(item_id: int, item: ItemUpdate) -> Item:
     if item_id not in items_storage:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"アイテムID {item_id} が見つかりません"
+            detail=f"アイテムID {item_id} が見つかりません",
         )
-    
+
     item_data = items_storage[item_id]
-    current_time = datetime.utcnow()
-    
+    current_time = datetime.now(UTC)
+
     # 更新されたフィールドのみを更新
     if item.name is not None:
         item_data["name"] = item.name
     if item.description is not None:
         item_data["description"] = item.description
-    
+
     item_data["updated_at"] = current_time
-    
+
     return Item(
         id=item_id,
         name=item_data["name"],
         description=item_data["description"],
         created_at=item_data["created_at"],
-        updated_at=item_data["updated_at"]
+        updated_at=item_data["updated_at"],
     )
 
 
-@router.delete("/api/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Items"])
+@router.delete(
+    "/api/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Items"]
+)
 async def delete_item(item_id: int):
     """
     アイテム削除
@@ -120,7 +131,7 @@ async def delete_item(item_id: int):
     if item_id not in items_storage:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"アイテムID {item_id} が見つかりません"
+            detail=f"アイテムID {item_id} が見つかりません",
         )
-    
+
     del items_storage[item_id]

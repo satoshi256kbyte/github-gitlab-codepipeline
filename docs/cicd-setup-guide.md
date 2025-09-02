@@ -31,7 +31,7 @@ aws configure
 # または
 export AWS_ACCESS_KEY_ID=your-access-key
 export AWS_SECRET_ACCESS_KEY=your-secret-key
-export AWS_DEFAULT_REGION=us-east-1
+export AWS_DEFAULT_REGION=ap-northeast-1
 
 # 認証確認
 aws sts get-caller-identity
@@ -62,7 +62,7 @@ GitHub リポジトリの Settings > Secrets and variables > Actions で以下�
 | Secret名 | 値 | 説明 |
 |----------|---|------|
 | `AWS_ACCOUNT_ID` | `123456789012` | AWSアカウントID |
-| `AWS_REGION` | `us-east-1` | AWSリージョン |
+| `AWS_REGION` | `ap-northeast-1` | AWSリージョン |
 
 #### OIDC設定（推奨）
 
@@ -135,7 +135,7 @@ GitLab プロジェクトの Settings > CI/CD > Variables で以下を設定：
 |--------|---|------|-------|
 | `AWS_ACCESS_KEY_ID` | `AKIA...` | ✓ | ✓ |
 | `AWS_SECRET_ACCESS_KEY` | `secret-key` | ✓ | ✓ |
-| `AWS_DEFAULT_REGION` | `us-east-1` | - | - |
+| `AWS_DEFAULT_REGION` | `ap-northeast-1` | - | - |
 | `AWS_ACCOUNT_ID` | `123456789012` | - | - |
 
 #### GitLab Runner設定
@@ -276,39 +276,39 @@ git push origin main
 
 ```bash
 # GitHub Actions専用
-curl https://github-local-api-gateway.execute-api.us-east-1.amazonaws.com/prod/health
+curl https://github-local-api-gateway.execute-api.ap-northeast-1.amazonaws.com/prod/health
 
 # GitLab CI/CD専用  
-curl https://gitlab-local-api-gateway.execute-api.us-east-1.amazonaws.com/prod/health
+curl https://gitlab-local-api-gateway.execute-api.ap-northeast-1.amazonaws.com/prod/health
 
 # CodePipeline専用
-curl https://codepipeline-local-api-gateway.execute-api.us-east-1.amazonaws.com/prod/health
+curl https://codepipeline-local-api-gateway.execute-api.ap-northeast-1.amazonaws.com/prod/health
 ```
 
 #### ECS エンドポイント（ALB経由）
 
 ```bash
 # GitHub Actions専用（Port 8080）
-curl http://github-local-ecs-alb-123456789.us-east-1.elb.amazonaws.com:8080/health
+curl http://github-local-ecs-alb-123456789.ap-northeast-1.elb.amazonaws.com:8080/health
 
 # GitLab CI/CD専用（Port 8081）
-curl http://gitlab-local-ecs-alb-123456789.us-east-1.elb.amazonaws.com:8081/health
+curl http://gitlab-local-ecs-alb-123456789.ap-northeast-1.elb.amazonaws.com:8081/health
 
 # CodePipeline専用（Port 8082）
-curl http://codepipeline-local-ecs-alb-123456789.us-east-1.elb.amazonaws.com:8082/health
+curl http://codepipeline-local-ecs-alb-123456789.ap-northeast-1.elb.amazonaws.com:8082/health
 ```
 
 #### EC2 エンドポイント（ALB経由）
 
 ```bash
 # GitHub Actions専用（Port 8080）
-curl http://github-local-ec2-alb-123456789.us-east-1.elb.amazonaws.com:8080/health
+curl http://github-local-ec2-alb-123456789.ap-northeast-1.elb.amazonaws.com:8080/health
 
 # GitLab CI/CD専用（Port 8081）
-curl http://gitlab-local-ec2-alb-123456789.us-east-1.elb.amazonaws.com:8081/health
+curl http://gitlab-local-ec2-alb-123456789.ap-northeast-1.elb.amazonaws.com:8081/health
 
 # CodePipeline専用（Port 8082）
-curl http://codepipeline-local-ec2-alb-123456789.us-east-1.elb.amazonaws.com:8082/health
+curl http://codepipeline-local-ec2-alb-123456789.ap-northeast-1.elb.amazonaws.com:8082/health
 ```
 
 ### エンドポイント取得方法

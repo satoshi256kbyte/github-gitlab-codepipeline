@@ -12,33 +12,54 @@ phases:
   build:
     commands:
       - . codepipeline/buildspecs/common_env.sh
-      - echo "SCAチェック（CodeGuru Security）を実行中..."
-      - SCAN_NAME="${SERVICE_NAME}-${STAGE_NAME}-sca-$(date +%s)"
-      - echo "スキャン名: $SCAN_NAME"
-      - zip -r /tmp/source-code.zip . -x "*.git*" "node_modules/*" "*.pyc" "__pycache__/*" ".venv/*" "cdk/node_modules/*"
-      - bash ./codepipeline/buildspecs/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION
-      - echo "SCAスキャン完了"
+      - echo "環境: ${STAGE_NAME}"
+      - |
+        if [ "${STAGE_NAME}" = "local" ]; then
+          echo "⚠️ ローカル環境でのCodeGuru Securityスキャンをスキップ"
+          echo "CodeGuru SecurityはLocalStackでは動作しないため、ローカル環境ではスキップします"
+          echo "実環境（dev以降）では正常に実行されます"
+          
+          # ダミーの結果ファイルを作成
+          SCAN_NAME="${SERVICE_NAME}-${STAGE_NAME}-sca-$(date +%s)"
+          echo '{"findings": [], "status": "skipped_local_env"}' > $SCAN_NAME.json
+          echo "ローカル環境用のダミー結果ファイルを作成: $SCAN_NAME.json"
+        else
+          echo "SCAチェック（CodeGuru Security）を実行中..."
+          SCAN_NAME="${SERVICE_NAME}-${STAGE_NAME}-sca-$(date +%s)"
+          echo "スキャン名: $SCAN_NAME"
+          zip -r /tmp/source-code.zip . -x "*.git*" "node_modules/*" "*.pyc" "__pycache__/*" ".venv/*" "cdk/node_modules/*"
+          bash ./codepipeline/buildspecs/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION
+          echo "SCAスキャン完了"
+        fi
 
   post_build:
     commands:
-      - CRITICAL_COUNT=$(jq '[.findings[] | select(.severity == "Critical")] | length' $SCAN_NAME.json)
-      - HIGH_COUNT=$(jq '[.findings[] | select(.severity == "High")] | length' $SCAN_NAME.json)
-      - MEDIUM_COUNT=$(jq '[.findings[] | select(.severity == "Medium")] | length' $SCAN_NAME.json)
-      - LOW_COUNT=$(jq '[.findings[] | select(.severity == "Low")] | length' $SCAN_NAME.json)
       - |
-        echo "--------- SCA脆弱性分析結果 --------"
-        echo "Critical重要度の脆弱性: $CRITICAL_COUNT"
-        echo "High重要度の脆弱性: $HIGH_COUNT"
-        echo "Medium重要度の脆弱性: $MEDIUM_COUNT"
-        echo "Low重要度の脆弱性: $LOW_COUNT"
-        echo "------------------------------------"
-      - |
-        if [ "$CRITICAL_COUNT" -gt 0 ]; then
-          echo "エラー: $CRITICAL_COUNT個のCritical脆弱性が発見されました"
-          exit 1
-        fi
-        if [ "$HIGH_COUNT" -gt 0 ]; then
-          echo "警告: $HIGH_COUNT個のHigh脆弱性が発見されました"
+        if [ "${STAGE_NAME}" = "local" ]; then
+          echo "--------- ローカル環境SCA結果 --------"
+          echo "ローカル環境のため、CodeGuru Securityスキャンはスキップされました"
+          echo "実環境では正常にSCAチェックが実行されます"
+          echo "------------------------------------"
+        else
+          CRITICAL_COUNT=$(jq '[.findings[] | select(.severity == "Critical")] | length' $SCAN_NAME.json)
+          HIGH_COUNT=$(jq '[.findings[] | select(.severity == "High")] | length' $SCAN_NAME.json)
+          MEDIUM_COUNT=$(jq '[.findings[] | select(.severity == "Medium")] | length' $SCAN_NAME.json)
+          LOW_COUNT=$(jq '[.findings[] | select(.severity == "Low")] | length' $SCAN_NAME.json)
+          
+          echo "--------- SCA脆弱性分析結果 --------"
+          echo "Critical重要度の脆弱性: $CRITICAL_COUNT"
+          echo "High重要度の脆弱性: $HIGH_COUNT"
+          echo "Medium重要度の脆弱性: $MEDIUM_COUNT"
+          echo "Low重要度の脆弱性: $LOW_COUNT"
+          echo "------------------------------------"
+          
+          if [ "$CRITICAL_COUNT" -gt 0 ]; then
+            echo "エラー: $CRITICAL_COUNT個のCritical脆弱性が発見されました"
+            exit 1
+          fi
+          if [ "$HIGH_COUNT" -gt 0 ]; then
+            echo "警告: $HIGH_COUNT個のHigh脆弱性が発見されました"
+          fi
         fi
 
 artifacts:
@@ -49,11 +70,11 @@ artifacts:
 cache:
   key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$(codebuild-hash-files package-lock.json)-$(codebuild-hash-files uv.lock)
   paths:
-    - '/root/.cache/pip/**/*'
-    - '/root/.cache/uv/**/*'
-    - '/root/.cargo/**/*'
-    - '/root/.npm/**/*'
-    - '/root/.asdf/**/*'
-    - '/root/.local/bin/**/*'
-    - 'node_modules/**/*'
-    - 'cdk/node_modules/**/*'
+    - "/root/.cache/pip/**/*"
+    - "/root/.cache/uv/**/*"
+    - "/root/.cargo/**/*"
+    - "/root/.npm/**/*"
+    - "/root/.asdf/**/*"
+    - "/root/.local/bin/**/*"
+    - "node_modules/**/*"
+    - "cdk/node_modules/**/*"

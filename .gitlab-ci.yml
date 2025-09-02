@@ -12,6 +12,16 @@ variables:
   AWS_DEFAULT_REGION: "ap-northeast-1"
   AWS_ACCOUNT_ID: "${AWS_ACCOUNT_ID}"
   
+  # GitLab OIDC設定（事前に作成されたIAMロールを使用）
+  AWS_GITLAB_ROLE_ARN: "${AWS_GITLAB_ROLE_ARN}"
+  
+  # LocalStack設定（ローカル環境用）
+  LOCALSTACK_ENDPOINT: "http://localhost:4566"
+  AWS_ENDPOINT_URL: "${LOCALSTACK_ENDPOINT}"
+  
+  # 環境判定とスキップフラグ
+  IS_LOCAL_ENV: "${CI_COMMIT_REF_NAME == 'local' || CI_PIPELINE_SOURCE == 'gitlab-ci-local'}"
+  
   # Docker設定
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: "/certs"
@@ -68,6 +78,40 @@ cache:
     - unzip -q awscliv2.zip
     - ./aws/install
     - aws --version
+
+# GitLab OIDC認証設定
+.aws_oidc_auth: &aws_oidc_auth
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      aud: https://gitlab.com
+  before_script:
+    - !reference [.aws_setup, before_script]
+    - |
+      echo "=== GitLab OIDC Authentication ==="
+      echo "Configuring AWS credentials via GitLab OIDC..."
+      
+      # GitLab OIDCトークンを使用してAWS STSでロールを引き受ける
+      export AWS_WEB_IDENTITY_TOKEN_FILE=/tmp/web-identity-token
+      echo $GITLAB_OIDC_TOKEN > $AWS_WEB_IDENTITY_TOKEN_FILE
+      export AWS_ROLE_ARN=$AWS_GITLAB_ROLE_ARN
+      export AWS_ROLE_SESSION_NAME="gitlab-ci-${CI_PIPELINE_ID}-${CI_JOB_ID}"
+      
+      # AWS認証情報を取得
+      aws sts assume-role-with-web-identity \
+        --role-arn $AWS_ROLE_ARN \
+        --role-session-name $AWS_ROLE_SESSION_NAME \
+        --web-identity-token file://$AWS_WEB_IDENTITY_TOKEN_FILE \
+        --query 'Credentials.[AccessKeyId,SecretAccessKey,SessionToken]' \
+        --output text | while read access_key secret_key session_token; do
+          export AWS_ACCESS_KEY_ID=$access_key
+          export AWS_SECRET_ACCESS_KEY=$secret_key
+          export AWS_SESSION_TOKEN=$session_token
+          echo "AWS credentials configured via GitLab OIDC"
+        done
+      
+      # 認証確認
+      aws sts get-caller-identity
+      fi
 
 # Python環境設定
 .python_setup: &python_setup
@@ -207,25 +251,27 @@ test:
 # SCAチェックジョブ（GitLab Dependency Scanning + CodeGuru Security）
 sca_check:
   stage: check
-  <<: *aws_setup
+  <<: *aws_oidc_auth
   <<: *failure_conditions
   needs: ["cache_dependencies"]
   script:
     - echo "=== GitLab CI/CD SCA Checks ==="
+    - echo "Environment: ${STAGE_NAME}, Local: ${IS_LOCAL_ENV}"
     - echo "1. GitLab Dependency Scanning runs automatically via include template"
     
-    - echo "2. Running AWS CodeGuru Security for SCA..."
-    - SCAN_NAME="${CICD_TOOL}-${SERVICE_NAME}-${STAGE_NAME}-sca-$(date +%s)"
-    - echo "Scan name: $SCAN_NAME"
-    - zip -r /tmp/source-code.zip . -x "*.git*" "node_modules/*" "*.pyc" "__pycache__/*" ".venv/*" ".cache/*"
-    - bash ./scripts/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION
-    
-    - echo "Analyzing CodeGuru Security SCA results..."
-    - CRITICAL_COUNT=$(jq '[.findings[] | select(.severity == "Critical")] | length' $SCAN_NAME.json)
-    - HIGH_COUNT=$(jq '[.findings[] | select(.severity == "High")] | length' $SCAN_NAME.json)
-    - MEDIUM_COUNT=$(jq '[.findings[] | select(.severity == "Medium")] | length' $SCAN_NAME.json)
-    - LOW_COUNT=$(jq '[.findings[] | select(.severity == "Low")] | length' $SCAN_NAME.json)
     - |
+      echo "2. Running AWS CodeGuru Security for SCA..."
+      SCAN_NAME="${CICD_TOOL}-${SERVICE_NAME}-${STAGE_NAME}-sca-$(date +%s)"
+      echo "Scan name: $SCAN_NAME"
+      zip -r /tmp/source-code.zip . -x "*.git*" "node_modules/*" "*.pyc" "__pycache__/*" ".venv/*" ".cache/*"
+      bash ./scripts/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION
+      
+      echo "Analyzing CodeGuru Security SCA results..."
+      CRITICAL_COUNT=$(jq '[.findings[] | select(.severity == "Critical")] | length' $SCAN_NAME.json)
+      HIGH_COUNT=$(jq '[.findings[] | select(.severity == "High")] | length' $SCAN_NAME.json)
+      MEDIUM_COUNT=$(jq '[.findings[] | select(.severity == "Medium")] | length' $SCAN_NAME.json)
+      LOW_COUNT=$(jq '[.findings[] | select(.severity == "Low")] | length' $SCAN_NAME.json)
+      
       echo "========= GitLab SCA Vulnerability Analysis ========="
       echo "Tool: GitLab Dependency Scanning + AWS CodeGuru Security"
       echo "Critical severity vulnerabilities found: $CRITICAL_COUNT"
@@ -233,7 +279,7 @@ sca_check:
       echo "Medium severity vulnerabilities found: $MEDIUM_COUNT"
       echo "Low severity vulnerabilities found: $LOW_COUNT"
       echo "===================================================="
-    - |
+      
       if [ "$CRITICAL_COUNT" -gt 0 ]; then
         echo "ERROR: Found $CRITICAL_COUNT critical vulnerabilities in dependencies"
         echo "Pipeline failed due to critical SCA vulnerabilities"
@@ -248,25 +294,27 @@ sca_check:
 # SASTチェックジョブ（GitLab SAST + CodeGuru Security）
 sast_check:
   stage: check
-  <<: *aws_setup
+  <<: *aws_oidc_auth
   <<: *failure_conditions
   needs: ["cache_dependencies"]
   script:
     - echo "=== GitLab CI/CD SAST Checks ==="
+    - echo "Environment: ${STAGE_NAME}, Local: ${IS_LOCAL_ENV}"
     - echo "1. GitLab SAST runs automatically via include template"
     
-    - echo "2. Running AWS CodeGuru Security for SAST..."
-    - SCAN_NAME="${CICD_TOOL}-${SERVICE_NAME}-${STAGE_NAME}-sast-$(date +%s)"
-    - echo "Scan name: $SCAN_NAME"
-    - zip -r /tmp/source-code.zip . -x "*.git*" "node_modules/*" "*.pyc" "__pycache__/*" ".venv/*" ".cache/*"
-    - bash ./scripts/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION
-    
-    - echo "Analyzing CodeGuru Security SAST results..."
-    - CRITICAL_COUNT=$(jq '[.findings[] | select(.severity == "Critical")] | length' $SCAN_NAME.json)
-    - HIGH_COUNT=$(jq '[.findings[] | select(.severity == "High")] | length' $SCAN_NAME.json)
-    - MEDIUM_COUNT=$(jq '[.findings[] | select(.severity == "Medium")] | length' $SCAN_NAME.json)
-    - LOW_COUNT=$(jq '[.findings[] | select(.severity == "Low")] | length' $SCAN_NAME.json)
     - |
+      echo "2. Running AWS CodeGuru Security for SAST..."
+      SCAN_NAME="${CICD_TOOL}-${SERVICE_NAME}-${STAGE_NAME}-sast-$(date +%s)"
+      echo "Scan name: $SCAN_NAME"
+      zip -r /tmp/source-code.zip . -x "*.git*" "node_modules/*" "*.pyc" "__pycache__/*" ".venv/*" ".cache/*"
+      bash ./scripts/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION
+      
+      echo "Analyzing CodeGuru Security SAST results..."
+      CRITICAL_COUNT=$(jq '[.findings[] | select(.severity == "Critical")] | length' $SCAN_NAME.json)
+      HIGH_COUNT=$(jq '[.findings[] | select(.severity == "High")] | length' $SCAN_NAME.json)
+      MEDIUM_COUNT=$(jq '[.findings[] | select(.severity == "Medium")] | length' $SCAN_NAME.json)
+      LOW_COUNT=$(jq '[.findings[] | select(.severity == "Low")] | length' $SCAN_NAME.json)
+      
       echo "========= GitLab SAST Vulnerability Analysis ========="
       echo "Tool: GitLab SAST + AWS CodeGuru Security"
       echo "Critical severity vulnerabilities found: $CRITICAL_COUNT"
@@ -274,7 +322,7 @@ sast_check:
       echo "Medium severity vulnerabilities found: $MEDIUM_COUNT"
       echo "Low severity vulnerabilities found: $LOW_COUNT"
       echo "====================================================="
-    - |
+      
       if [ "$CRITICAL_COUNT" -gt 0 ]; then
         echo "ERROR: Found $CRITICAL_COUNT critical vulnerabilities in source code"
         echo "Pipeline failed due to critical SAST vulnerabilities"
@@ -318,22 +366,29 @@ sast:
 # AWS Lambda SAMデプロイ（GitLab専用リソース）
 deploy_lambda:
   stage: deploy
-  <<: *aws_setup
+  <<: *aws_oidc_auth
   needs: ["lint", "test", "sca_check", "sast_check"]
   script:
     - echo "=== GitLab CI/CD Lambda Deployment ==="
-    - echo "Deploying to GitLab-specific AWS Lambda resources..."
-    - . ~/.asdf/asdf.sh
-    - export PATH="$HOME/.cargo/bin:$PATH"
+    - echo "Environment: ${STAGE_NAME}, Local: ${IS_LOCAL_ENV}"
     
-    - echo "Using GitLab deployment script..."
-    - bash gitlab/scripts/deploy-lambda.sh
-    
-    - echo "Verifying GitLab Lambda deployment..."
-    - API_ENDPOINT=$(aws cloudformation describe-stacks --stack-name ${SAM_STACK_NAME} --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" --output text --region $AWS_DEFAULT_REGION)
-    - echo "GitLab Lambda API Endpoint: $API_ENDPOINT"
-    - curl -f "$API_ENDPOINT/health" || (echo "GitLab Lambda health check failed" && exit 1)
-    - curl -f "$API_ENDPOINT/version" || (echo "GitLab Lambda version check failed" && exit 1)
+    - |
+      echo "🚀 Deploying to AWS Lambda..."
+      sam deploy --template-file template-gitlab.yaml \
+        --no-confirm-changeset --no-fail-on-empty-changeset \
+        --stack-name ${CICD_TOOL}-${STAGE_NAME}-lambda \
+        --capabilities CAPABILITY_IAM \
+        --region $AWS_DEFAULT_REGION \
+        --parameter-overrides \
+          Environment=${STAGE_NAME} \
+          ServiceName=${SERVICE_NAME} \
+          CicdTool=${CICD_TOOL}
+        
+        echo "Verifying GitLab Lambda deployment..."
+        API_ENDPOINT=$(aws cloudformation describe-stacks --stack-name ${SAM_STACK_NAME} --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" --output text --region $AWS_DEFAULT_REGION)
+        echo "GitLab Lambda API Endpoint: $API_ENDPOINT"
+        curl -f "$API_ENDPOINT/health" || (echo "GitLab Lambda health check failed" && exit 1)
+        curl -f "$API_ENDPOINT/version" || (echo "GitLab Lambda version check failed" && exit 1)
     - echo "GitLab Lambda deployment completed successfully"
   environment:
     name: gitlab-lambda
@@ -346,42 +401,10 @@ deploy_lambda:
     - main
     - develop
 
-# ECS Blue/Greenデプロイ（GitLab専用リソース）
-deploy_ecs:
-  stage: deploy
-  <<: *docker_setup
-  needs: ["lint", "test", "sca_check", "sast_check"]
-  script:
-    - echo "=== GitLab CI/CD ECS Blue/Green Deployment ==="
-    - echo "Deploying to GitLab-specific ECS resources (Port 8081)..."
-    
-    - echo "Using GitLab ECS deployment script..."
-    - bash gitlab/scripts/deploy-ecs.sh
-    
-    - echo "Verifying GitLab ECS deployment..."
-    - ALB_DNS=$(aws elbv2 describe-load-balancers --names ${ALB_NAME_ECS} --query "LoadBalancers[0].DNSName" --output text --region $AWS_DEFAULT_REGION)
-    - echo "GitLab ECS ALB DNS: $ALB_DNS"
-    - echo "Testing GitLab ECS endpoints..."
-    - curl -f "http://$ALB_DNS:8081/health" || (echo "GitLab ECS health check failed" && exit 1)
-    - curl -f "http://$ALB_DNS:8081/version" || (echo "GitLab ECS version check failed" && exit 1)
-    - echo "GitLab ECS deployment completed successfully"
-  environment:
-    name: gitlab-ecs
-    url: http://${ALB_NAME_ECS}:8081
-  artifacts:
-    paths:
-      - taskdef-updated.json
-      - appspec-updated.yml
-      - deployment.json
-    expire_in: 1 week
-  only:
-    - main
-    - develop
-
 # EC2 CodeDeployデプロイ（GitLab専用リソース）
 deploy_ec2:
   stage: deploy
-  <<: *aws_setup
+  <<: *aws_oidc_auth
   needs: ["lint", "test", "sca_check", "sast_check"]
   script:
     - echo "=== GitLab CI/CD EC2 CodeDeploy Blue/Green Deployment ==="

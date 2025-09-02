@@ -3,8 +3,10 @@
 """
 
 import os
-from datetime import datetime
+from datetime import UTC, datetime
+
 from fastapi import APIRouter
+
 from ..models.schemas import VersionResponse
 
 router = APIRouter()
@@ -18,7 +20,7 @@ async def get_version() -> VersionResponse:
     """
     return VersionResponse(
         version="1.0.0",
-        build_time=datetime.utcnow(),
+        build_time=datetime.now(UTC),
         commit_hash=os.getenv("COMMIT_HASH", "unknown"),
-        environment=os.getenv("APP_ENVIRONMENT", "local")
+        environment=os.getenv("APP_ENVIRONMENT", "local"),
     )

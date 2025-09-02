@@ -50,7 +50,7 @@ aws configure
 # または環境変数で設定
 export AWS_ACCESS_KEY_ID=your-access-key
 export AWS_SECRET_ACCESS_KEY=your-secret-key
-export AWS_DEFAULT_REGION=us-east-1
+export AWS_DEFAULT_REGION=ap-northeast-1
 
 # 認証確認
 aws sts get-caller-identity
@@ -435,7 +435,7 @@ cd cdk
 npx cdk bootstrap
 
 # 特定のリージョンでのブートストラップ
-npx cdk bootstrap aws://123456789012/us-east-1
+npx cdk bootstrap aws://123456789012/ap-northeast-1
 
 # ブートストラップ状態の確認
 aws cloudformation describe-stacks --stack-name CDKToolkit
@@ -497,7 +497,7 @@ npx cdk deploy --force
 ```bash
 # ターゲットグループの状態確認
 aws elbv2 describe-target-health \
-  --target-group-arn arn:aws:elasticloadbalancing:us-east-1:123456789012:targetgroup/github-local-ecs-tg/1234567890123456
+  --target-group-arn arn:aws:elasticloadbalancing:ap-northeast-1:123456789012:targetgroup/github-local-ecs-tg/1234567890123456
 
 # セキュリティグループの確認
 aws ec2 describe-security-groups \
@@ -826,19 +826,19 @@ echo "=== Health Check Report ==="
 check_service "Local Dev Server" "http://localhost:8000/health"
 
 # GitHub Actions専用エンドポイント
-check_service "GitHub Lambda" "https://github-local-api-gateway.execute-api.us-east-1.amazonaws.com/prod/health"
-check_service "GitHub ECS" "http://github-local-ecs-alb.us-east-1.elb.amazonaws.com:8080/health"
-check_service "GitHub EC2" "http://github-local-ec2-alb.us-east-1.elb.amazonaws.com:8080/health"
+check_service "GitHub Lambda" "https://github-local-api-gateway.execute-api.ap-northeast-1.amazonaws.com/prod/health"
+check_service "GitHub ECS" "http://github-local-ecs-alb.ap-northeast-1.elb.amazonaws.com:8080/health"
+check_service "GitHub EC2" "http://github-local-ec2-alb.ap-northeast-1.elb.amazonaws.com:8080/health"
 
 # GitLab CI/CD専用エンドポイント
-check_service "GitLab Lambda" "https://gitlab-local-api-gateway.execute-api.us-east-1.amazonaws.com/prod/health"
-check_service "GitLab ECS" "http://gitlab-local-ecs-alb.us-east-1.elb.amazonaws.com:8081/health"
-check_service "GitLab EC2" "http://gitlab-local-ec2-alb.us-east-1.elb.amazonaws.com:8081/health"
+check_service "GitLab Lambda" "https://gitlab-local-api-gateway.execute-api.ap-northeast-1.amazonaws.com/prod/health"
+check_service "GitLab ECS" "http://gitlab-local-ecs-alb.ap-northeast-1.elb.amazonaws.com:8081/health"
+check_service "GitLab EC2" "http://gitlab-local-ec2-alb.ap-northeast-1.elb.amazonaws.com:8081/health"
 
 # CodePipeline専用エンドポイント
-check_service "CodePipeline Lambda" "https://codepipeline-local-api-gateway.execute-api.us-east-1.amazonaws.com/prod/health"
-check_service "CodePipeline ECS" "http://codepipeline-local-ecs-alb.us-east-1.elb.amazonaws.com:8082/health"
-check_service "CodePipeline EC2" "http://codepipeline-local-ec2-alb.us-east-1.elb.amazonaws.com:8082/health"
+check_service "CodePipeline Lambda" "https://codepipeline-local-api-gateway.execute-api.ap-northeast-1.amazonaws.com/prod/health"
+check_service "CodePipeline ECS" "http://codepipeline-local-ecs-alb.ap-northeast-1.elb.amazonaws.com:8082/health"
+check_service "CodePipeline EC2" "http://codepipeline-local-ec2-alb.ap-northeast-1.elb.amazonaws.com:8082/health"
 
 echo "=== Health Check Complete ==="
 ```

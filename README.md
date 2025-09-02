@@ -13,6 +13,7 @@ GitHub Actions、GitLab CI/CD、AWS CodePipelineの3つのCI/CDツールでパ�
 - [デプロイメント](#デプロイメント)
 - [テスト](#テスト)
 - [ローカル開発](#ローカル開発)
+- [ローカルテスト環境](#ローカルテスト環境)
 - [トラブルシューティング](#トラブルシューティング)
 - [貢献](#貢献)
 - [ライセンス](#ライセンス)
@@ -128,9 +129,13 @@ GitHub Actions、GitLab CI/CD、AWS CodePipelineの3つのCI/CDツールでパ�
 
 #### 1. インフラストラクチャのデプロイ
 
+CDKデプロイで使用するプロファイルは必ず`private`にしてください
+CDKデプロイ時のリージョンは、必ず`ap-northeast-1`にしてください
+
+
 ```bash
 cd cdk
-npx cdk deploy --all
+npx cdk deploy --all --profile private --region ap-northeast-1 --require-approval never --progress events
 ```
 
 これにより、各CI/CDツール専用のAWSリソースが作成されます：
@@ -543,3 +548,288 @@ uv run mypy modules/api
 ## 📄 ライセンス
 
 MIT License - 詳細は [LICENSE](LICENSE) ファイルを参照してください。
+
+## 🧪 ローカルテスト環境
+
+このプロジェクトでは、LocalStack、act、gitlab-ci-localを使用して、3つのCI/CDツールをローカル環境でテストできます。
+
+### 📋 前提条件
+
+#### 必須ツール
+
+- **Docker & Docker Compose**: コンテナ実行環境
+- **AWS CLI**: AWSサービス操作
+- **jq**: JSON処理
+- **uv**: Pythonパッケージ管理
+- **asdf**: ランタイムバージョン管理
+
+#### オプションツール（各CI/CDツール用）
+
+- **act**: GitHub Actionsローカル実行
+
+  ```bash
+  # macOS
+  brew install act
+  
+  # Linux
+  curl https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
+  ```
+
+- **gitlab-ci-local**: GitLab CI/CDローカル実行
+
+  ```bash
+  npm install -g gitlab-ci-local
+  ```
+
+### 🚀 LocalStack環境のセットアップ
+
+#### 1. LocalStackの起動
+
+```bash
+# LocalStackサービスを起動
+make -f Makefile.localstack localstack-start
+
+# または手動で起動
+docker-compose -f docker-compose.localstack.yml up -d
+```
+
+#### 2. LocalStack初期化
+
+```bash
+# AWSリソースを初期化
+make -f Makefile.localstack localstack-init
+
+# LocalStackの状態確認
+make -f Makefile.localstack localstack-status
+```
+
+#### 3. LocalStack接続テスト
+
+```bash
+# 接続テスト
+make -f Makefile.localstack localstack-test
+
+# 利用可能なリソース確認
+source scripts/localstack-helpers.sh
+setup_localstack_env
+list_localstack_resources
+```
+
+### 🔧 各CI/CDツールのローカルテスト
+
+#### GitHub Actions (act)
+
+```bash
+# GitHub Actionsワークフローをローカルでテスト
+./scripts/test-github-actions-local.sh
+
+# 特定のジョブのみテスト
+./scripts/test-github-actions-local.sh -j lint
+
+# 利用可能なワークフロー確認
+./scripts/test-github-actions-local.sh --list
+
+# ドライランのみ実行
+./scripts/test-github-actions-local.sh --dry-run
+```
+
+**actの設定ファイル (.actrc)**:
+
+```
+--env-file .env.localstack
+--platform ubuntu-latest=catthehacker/ubuntu:act-latest
+--container-architecture linux/amd64
+--verbose
+```
+
+#### GitLab CI/CD (gitlab-ci-local)
+
+```bash
+# GitLab CI/CDパイプラインをローカルでテスト
+./scripts/test-gitlab-ci-local.sh
+
+# 特定のステージのみテスト
+./scripts/test-gitlab-ci-local.sh -s check
+
+# 特定のジョブのみテスト
+./scripts/test-gitlab-ci-local.sh -j lint
+
+# 設定の検証のみ
+./scripts/test-gitlab-ci-local.sh --validate
+```
+
+#### CodePipeline (buildspec simulation)
+
+```bash
+# CodePipelineのbuildspecをローカルでテスト
+./scripts/test-codepipeline-local.sh
+
+# 特定のbuildspecのみテスト
+./scripts/test-codepipeline-local.sh -b lint
+
+# 利用可能なbuildspec確認
+./scripts/test-codepipeline-local.sh --list
+```
+
+### 🔄 統合テスト
+
+全てのCI/CDツールを一括でテストする統合テストスクリプト:
+
+```bash
+# 全CI/CDツールの統合テスト
+./scripts/local-test-integration.sh
+
+# 特定のツールのみテスト
+./scripts/local-test-integration.sh --github-only
+./scripts/local-test-integration.sh --gitlab-only
+./scripts/local-test-integration.sh --codepipeline-only
+
+# LocalStackを起動せずにテスト（既に起動済みの場合）
+./scripts/local-test-integration.sh --no-localstack
+```
+
+### 🎯 環境名による条件分岐
+
+ローカル環境では、実際のAWSサービスが利用できない機能は自動的にスキップされます：
+
+#### スキップされる機能
+
+| 機能 | GitHub Actions | GitLab CI/CD | CodePipeline |
+|------|----------------|--------------|--------------|
+| **CodeGuru Security** | ✅ スキップ | ✅ スキップ | ✅ スキップ |
+| **CodeQL** | ✅ スキップ | - | - |
+| **Dependabot** | ✅ スキップ | - | - |
+| **GitLab SAST** | - | ❌ 実行 | - |
+| **GitLab Dependency Scanning** | - | ❌ 実行 | - |
+
+#### 環境判定ロジック
+
+- **GitHub Actions**: `act`実行時に自動判定
+- **GitLab CI/CD**: `CI_PIPELINE_SOURCE=gitlab-ci-local`で判定
+- **CodePipeline**: `STAGE_NAME=local`で判定
+
+### 📊 テスト結果の確認
+
+#### テストレポート
+
+統合テストを実行すると、`local-test-report.md`が生成されます：
+
+```bash
+# テストレポート確認
+cat local-test-report.md
+```
+
+#### LocalStackリソース確認
+
+```bash
+# LocalStackのリソース状況確認
+source scripts/localstack-helpers.sh
+setup_localstack_env
+show_localstack_status
+list_localstack_resources
+```
+
+#### ログ確認
+
+```bash
+# LocalStackログ確認
+make -f Makefile.localstack localstack-logs
+
+# 特定のサービスのログ確認
+docker logs localstack-cicd-comparison
+```
+
+### 🛠️ トラブルシューティング
+
+#### よくある問題と解決方法
+
+1. **LocalStackが起動しない**
+
+   ```bash
+   # Dockerサービス確認
+   docker ps
+   
+   # ポート競合確認
+   lsof -i :4566
+   
+   # LocalStack再起動
+   make -f Makefile.localstack localstack-restart
+   ```
+
+2. **actでGitHub Actionsが失敗する**
+
+   ```bash
+   # 詳細ログで実行
+   act -j lint --verbose
+   
+   # 特定のプラットフォームで実行
+   act -j lint --platform ubuntu-latest=catthehacker/ubuntu:act-latest
+   ```
+
+3. **gitlab-ci-localで設定エラー**
+
+   ```bash
+   # 設定検証
+   gitlab-ci-local --list
+   
+   # 詳細ログで実行
+   gitlab-ci-local --stage check --verbose
+   ```
+
+4. **AWS認証エラー**
+
+   ```bash
+   # LocalStack用認証情報設定
+   export AWS_ACCESS_KEY_ID=test
+   export AWS_SECRET_ACCESS_KEY=test
+   export AWS_ENDPOINT_URL=http://localhost:4566
+   ```
+
+#### パフォーマンス最適化
+
+1. **Dockerイメージキャッシュ**
+
+   ```bash
+   # 不要なイメージ削除
+   docker system prune -f
+   
+   # LocalStackデータクリーンアップ
+   make -f Makefile.localstack localstack-clean
+   ```
+
+2. **並列実行制限**
+
+   ```bash
+   # 同時実行数を制限（リソース不足時）
+   act -j lint --parallel=1
+   gitlab-ci-local --stage check --parallel=1
+   ```
+
+### 📈 ローカルテストのメリット
+
+1. **高速フィードバック**: クラウド環境より高速
+2. **コスト削減**: AWSリソース使用料不要
+3. **オフライン開発**: インターネット接続不要
+4. **デバッグ容易**: ローカル環境でのデバッグ
+5. **実験安全**: 本番環境への影響なし
+
+### 🔄 実環境との違い
+
+| 項目 | ローカル環境 | 実環境 |
+|------|-------------|--------|
+| **AWS認証** | テスト認証情報 | 実際のIAM認証 |
+| **セキュリティスキャン** | 一部スキップ | 全機能実行 |
+| **デプロイ先** | LocalStack | 実際のAWSサービス |
+| **ネットワーク** | ローカルネットワーク | AWSネットワーク |
+| **パフォーマンス** | ローカルマシン依存 | AWSインフラ性能 |
+
+### 📝 次のステップ
+
+1. **ローカルテスト完了後**: 実環境（dev/staging）でのテスト
+2. **設定調整**: 実環境用の設定ファイル更新
+3. **パフォーマンス比較**: ローカルと実環境の実行時間比較
+4. **CI/CD最適化**: テスト結果を基にした設定最適化
+
+---
+
+**注意**: ローカルテスト環境は開発・検証用途です。本番デプロイ前には必ず実環境でのテストを実施してください。

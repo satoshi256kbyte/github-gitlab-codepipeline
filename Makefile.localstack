@@ -1,0 +1,120 @@
+# LocalStack Management Makefile
+# This file contains commands for managing LocalStack local development environment
+
+.PHONY: localstack-start localstack-stop localstack-restart localstack-init localstack-status localstack-logs localstack-clean
+
+# Start LocalStack services
+localstack-start:
+	@echo "🚀 Starting LocalStack services..."
+	docker-compose -f docker-compose.localstack.yml up -d
+	@echo "⏳ Waiting for LocalStack to be ready..."
+	@sleep 10
+	@make localstack-init
+
+# Stop LocalStack services
+localstack-stop:
+	@echo "🛑 Stopping LocalStack services..."
+	docker-compose -f docker-compose.localstack.yml down
+
+# Restart LocalStack services
+localstack-restart: localstack-stop localstack-start
+
+# Initialize LocalStack with required resources
+localstack-init:
+	@echo "🔧 Initializing LocalStack resources..."
+	@bash scripts/localstack-init.sh
+
+# Check LocalStack status
+localstack-status:
+	@echo "📊 LocalStack service status:"
+	@curl -s http://localhost:4566/_localstack/health | jq '.' || echo "LocalStack is not running or jq is not installed"
+
+# Show LocalStack logs
+localstack-logs:
+	@echo "📝 LocalStack logs:"
+	docker-compose -f docker-compose.localstack.yml logs -f localstack
+
+# Clean LocalStack data and containers
+localstack-clean:
+	@echo "🧹 Cleaning LocalStack data..."
+	docker-compose -f docker-compose.localstack.yml down -v
+	docker system prune -f
+	@echo "✅ LocalStack cleanup completed"
+
+# Test LocalStack connectivity
+localstack-test:
+	@echo "🧪 Testing LocalStack connectivity..."
+	@echo "S3 buckets:"
+	@aws --endpoint-url=http://localhost:4566 s3 ls || echo "Failed to list S3 buckets"
+	@echo "ECR repositories:"
+	@aws --endpoint-url=http://localhost:4566 ecr describe-repositories --region ap-northeast-1 || echo "Failed to list ECR repositories"
+	@echo "CloudWatch Log Groups:"
+	@aws --endpoint-url=http://localhost:4566 logs describe-log-groups --region ap-northeast-1 || echo "Failed to list log groups"
+
+# Run local CI/CD tests with LocalStack
+localstack-test-cicd:
+	@echo "🔄 Running CI/CD tests with LocalStack..."
+	@echo "Testing GitHub Actions with act..."
+	@if command -v act >/dev/null 2>&1; then \
+		act --env-file .env.localstack -j test; \
+	else \
+		echo "⚠️  act is not installed. Skipping GitHub Actions test."; \
+	fi
+	@echo "Testing GitLab CI/CD with gitlab-ci-local..."
+	@if command -v gitlab-ci-local >/dev/null 2>&1; then \
+		gitlab-ci-local --env-file .env.localstack; \
+	else \
+		echo "⚠️  gitlab-ci-local is not installed. Skipping GitLab CI/CD test."; \
+	fi
+
+
+# Local CI/CD Testing Commands
+localstack-test-all:
+	@echo "🧪 Running all CI/CD local tests..."
+	@bash scripts/local-test-integration.sh
+
+localstack-test-github:
+	@echo "🧪 Testing GitHub Actions locally..."
+	@bash scripts/test-github-actions-local.sh
+
+localstack-test-gitlab:
+	@echo "🧪 Testing GitLab CI/CD locally..."
+	@bash scripts/test-gitlab-ci-local.sh
+
+localstack-test-codepipeline:
+	@echo "🧪 Testing CodePipeline buildspecs locally..."
+	@bash scripts/test-codepipeline-local.sh
+
+# Development workflow
+localstack-dev-setup:
+	@echo "🔧 Setting up complete local development environment..."
+	@make localstack-start
+	@make localstack-test-all
+
+localstack-dev-teardown:
+	@echo "🧹 Tearing down local development environment..."
+	@make localstack-clean
+
+# Update help to include new commands
+localstack-help:
+	@echo "LocalStack Management Commands:"
+	@echo "  localstack-start           - Start LocalStack services"
+	@echo "  localstack-stop            - Stop LocalStack services"
+	@echo "  localstack-restart         - Restart LocalStack services"
+	@echo "  localstack-init            - Initialize LocalStack resources"
+	@echo "  localstack-status          - Check LocalStack service status"
+	@echo "  localstack-logs            - Show LocalStack logs"
+	@echo "  localstack-clean           - Clean LocalStack data and containers"
+	@echo "  localstack-test            - Test LocalStack connectivity"
+	@echo "  localstack-test-cicd       - Run CI/CD tests with LocalStack"
+	@echo ""
+	@echo "Local CI/CD Testing Commands:"
+	@echo "  localstack-test-all        - Run all CI/CD local tests"
+	@echo "  localstack-test-github     - Test GitHub Actions locally"
+	@echo "  localstack-test-gitlab     - Test GitLab CI/CD locally"
+	@echo "  localstack-test-codepipeline - Test CodePipeline buildspecs locally"
+	@echo ""
+	@echo "Development Workflow:"
+	@echo "  localstack-dev-setup       - Setup complete local development environment"
+	@echo "  localstack-dev-teardown    - Teardown local development environment"
+	@echo "  localstack-help            - Show this help message"

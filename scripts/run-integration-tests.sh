@@ -50,7 +50,7 @@ echo "🔐 AWS認証情報の確認..."
 if aws sts get-caller-identity &> /dev/null; then
     echo "✓ AWS認証情報が設定されています"
     AWS_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
-    AWS_REGION=$(aws configure get region || echo "us-east-1")
+    AWS_REGION=$(aws configure get region || echo "ap-northeast-1")
     echo "  アカウント: $AWS_ACCOUNT"
     echo "  リージョン: $AWS_REGION"
 else

@@ -17,7 +17,7 @@ capabilities = "CAPABILITY_IAM"
 confirm_changeset = false
 resolve_s3 = true
 s3_prefix = "github-local-lambda"
-region = "us-east-1"
+region = "ap-northeast-1"
 parameter_overrides = "Environment=local CicdTool=github"
 image_repositories = []
 
@@ -41,7 +41,7 @@ capabilities = "CAPABILITY_IAM"
 confirm_changeset = false
 resolve_s3 = true
 s3_prefix = "gitlab-local-lambda"
-region = "us-east-1"
+region = "ap-northeast-1"
 parameter_overrides = "Environment=local CicdTool=gitlab"
 image_repositories = []
 
@@ -65,7 +65,7 @@ capabilities = "CAPABILITY_IAM"
 confirm_changeset = false
 resolve_s3 = true
 s3_prefix = "codepipeline-local-lambda"
-region = "us-east-1"
+region = "ap-northeast-1"
 parameter_overrides = "Environment=local CicdTool=codepipeline"
 image_repositories = []
 
@@ -89,7 +89,7 @@ capabilities = "CAPABILITY_IAM"
 confirm_changeset = false
 resolve_s3 = true
 s3_prefix = "cicd-comparison-lambda"
-region = "us-east-1"
+region = "ap-northeast-1"
 parameter_overrides = "Environment=local CicdTool=codepipeline"
 image_repositories = []
 

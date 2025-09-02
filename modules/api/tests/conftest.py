@@ -3,14 +3,16 @@ pytest設定ファイル
 テスト用のフィクスチャとモックを定義
 """
 
+from collections.abc import Generator
+from datetime import datetime
+from typing import Any
+from unittest.mock import patch
+
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch
-from datetime import datetime
-from typing import Generator, Dict, Any
 
-from ..main import app, settings
-from ..routers.items import items_storage, next_id
+from ..main import app
+from ..routers.items import items_storage
 
 
 @pytest.fixture
@@ -22,58 +24,61 @@ def client() -> TestClient:
 
 
 @pytest.fixture
-def clean_items_storage() -> Generator[None, None, None]:
+def clean_items_storage() -> Generator[None]:
     """
     アイテムストレージをクリーンアップするフィクスチャ
     テスト実行前後でストレージを初期化する
     """
     # テスト前の状態を保存
     original_storage = items_storage.copy()
-    original_next_id = next_id
-    
+
+    # next_idをリセット
+    import modules.api.routers.items as items_module
+
+    original_next_id = items_module.next_id
+    items_module.next_id = 1
+
     # ストレージをクリア
     items_storage.clear()
-    
+
     # テスト実行
     yield
-    
+
     # テスト後に元の状態に復元
     items_storage.clear()
     items_storage.update(original_storage)
-    # next_idはグローバル変数なので直接変更できないため、
-    # テストでは新しいアイテム作成時に適切にIDを管理する
+    items_module.next_id = original_next_id
 
 
 @pytest.fixture
-def sample_item_data() -> Dict[str, Any]:
+def sample_item_data() -> dict[str, Any]:
     """
     テスト用のサンプルアイテムデータ
     """
-    return {
-        "name": "テストアイテム",
-        "description": "これはテスト用のアイテムです"
-    }
+    return {"name": "テストアイテム", "description": "これはテスト用のアイテムです"}
 
 
 @pytest.fixture
-def sample_item_update_data() -> Dict[str, Any]:
+def sample_item_update_data() -> dict[str, Any]:
     """
     テスト用のアイテム更新データ
     """
     return {
         "name": "更新されたアイテム",
-        "description": "これは更新されたテスト用のアイテムです"
+        "description": "これは更新されたテスト用のアイテムです",
     }
 
 
 @pytest.fixture
 def mock_datetime():
     """
-    datetime.utcnow()をモックするフィクスチャ
+    datetime.now(UTC)をモックするフィクスチャ
     """
-    fixed_datetime = datetime(2024, 1, 1, 12, 0, 0)
-    with patch('modules.api.routers.health.datetime') as mock_dt:
-        mock_dt.utcnow.return_value = fixed_datetime
+    from datetime import UTC
+
+    fixed_datetime = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
+    with patch("modules.api.routers.health.datetime") as mock_dt:
+        mock_dt.now.return_value = fixed_datetime
         yield mock_dt
 
 
@@ -82,10 +87,9 @@ def mock_environment_variables():
     """
     環境変数をモックするフィクスチャ
     """
-    with patch.dict('os.environ', {
-        'COMMIT_HASH': 'abc123def456',
-        'APP_ENVIRONMENT': 'test'
-    }):
+    with patch.dict(
+        "os.environ", {"COMMIT_HASH": "abc123def456", "APP_ENVIRONMENT": "test"}
+    ):
         yield
 
 
@@ -95,42 +99,44 @@ def reset_items_storage():
     各テスト実行前にアイテムストレージをリセットする
     autouse=Trueにより、全てのテストで自動実行される
     """
+    # テスト開始前にリセット
     items_storage.clear()
-    # next_idのリセットは各テストで個別に管理
+    import modules.api.routers.items as items_module
+    items_module.next_id = 1
+
     yield
+
+    # テスト終了後にもクリア
     items_storage.clear()
+    items_module.next_id = 1
 
 
 class TestDataFactory:
     """
     テストデータ作成用のファクトリークラス
     """
-    
+
     @staticmethod
     def create_item_data(
-        name: str = "テストアイテム",
-        description: str = "テスト用の説明"
-    ) -> Dict[str, str]:
+        name: str = "テストアイテム", description: str = "テスト用の説明"
+    ) -> dict[str, str]:
         """アイテム作成用データを生成"""
-        return {
-            "name": name,
-            "description": description
-        }
-    
+        return {"name": name, "description": description}
+
     @staticmethod
-    def create_invalid_item_data() -> Dict[str, str]:
+    def create_invalid_item_data() -> dict[str, str]:
         """無効なアイテムデータを生成"""
         return {
             "name": "",  # 空文字列
-            "description": ""  # 空文字列
+            "description": "",  # 空文字列
         }
-    
+
     @staticmethod
-    def create_long_item_data() -> Dict[str, str]:
+    def create_long_item_data() -> dict[str, str]:
         """長すぎるデータを持つアイテムデータを生成"""
         return {
             "name": "a" * 101,  # 100文字制限を超える
-            "description": "b" * 501  # 500文字制限を超える
+            "description": "b" * 501,  # 500文字制限を超える
         }
 
 

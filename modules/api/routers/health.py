@@ -2,8 +2,10 @@
 ヘルスチェックエンドポイント
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
+
 from fastapi import APIRouter
+
 from ..models.schemas import HealthResponse
 
 router = APIRouter()
@@ -16,7 +18,5 @@ async def health_check() -> HealthResponse:
     アプリケーションの稼働状況を確認する
     """
     return HealthResponse(
-        status="healthy",
-        timestamp=datetime.utcnow(),
-        service="CI/CD Comparison API"
+        status="healthy", timestamp=datetime.now(UTC), service="CI/CD Comparison API"
     )

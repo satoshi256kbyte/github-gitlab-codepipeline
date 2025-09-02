@@ -97,7 +97,7 @@ cat > .env.local << 'EOF'
 # AWS設定（ローカルテスト用）
 AWS_ACCESS_KEY_ID=test
 AWS_SECRET_ACCESS_KEY=test
-AWS_DEFAULT_REGION=us-east-1
+AWS_DEFAULT_REGION=ap-northeast-1
 AWS_ACCOUNT_ID=123456789012
 
 # GitHub設定
@@ -264,7 +264,7 @@ gitlab-runner exec docker deploy-ec2
 cat > .gitlab-ci-env << 'EOF'
 AWS_ACCESS_KEY_ID=test
 AWS_SECRET_ACCESS_KEY=test
-AWS_DEFAULT_REGION=us-east-1
+AWS_DEFAULT_REGION=ap-northeast-1
 AWS_ACCOUNT_ID=123456789012
 ENVIRONMENT=local
 DEBUG=true
@@ -338,7 +338,7 @@ for buildspec in codepipeline/buildspecs/*.yml; do
   docker run --rm -it \
     -v $(pwd):/workspace \
     -w /workspace \
-    -e AWS_DEFAULT_REGION=us-east-1 \
+    -e AWS_DEFAULT_REGION=ap-northeast-1 \
     -e AWS_ACCOUNT_ID=123456789012 \
     aws/codebuild/standard:5.0 \
     bash -c "
@@ -376,7 +376,7 @@ localstack status services
 export AWS_ENDPOINT_URL=http://localhost:4566
 export AWS_ACCESS_KEY_ID=test
 export AWS_SECRET_ACCESS_KEY=test
-export AWS_DEFAULT_REGION=us-east-1
+export AWS_DEFAULT_REGION=ap-northeast-1
 
 # S3バケットの作成（テスト用）
 aws --endpoint-url=http://localhost:4566 s3 mb s3://test-bucket

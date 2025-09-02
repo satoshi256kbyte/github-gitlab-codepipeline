@@ -16,19 +16,20 @@ phases:
 
       # SAMテンプレートの存在確認
       - |
-        if [ ! -f "template.yaml" ]; then
-          echo "エラー: template.yamlが見つかりません"
+        if [ ! -f "template-codepipeline.yaml" ]; then
+          echo "エラー: template-codepipeline.yamlが見つかりません"
           exit 1
         fi
 
       # SAMビルド
       - echo "SAMアプリケーションをビルド中..."
-      - sam build --use-container
+      - sam build --template-file template-codepipeline.yaml --use-container
 
       # SAMデプロイ
       - echo "SAMアプリケーションをデプロイ中..."
       - |
         sam deploy \
+          --template-file template-codepipeline.yaml \
           --stack-name "${SERVICE_NAME}-${STAGE_NAME}-lambda-stack" \
           --capabilities CAPABILITY_IAM \
           --region $AWS_DEFAULT_REGION \

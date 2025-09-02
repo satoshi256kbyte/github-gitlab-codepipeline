@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  localstack:
+    container_name: localstack-cicd-comparison
+    image: localstack/localstack:3.0
+    ports:
+      - "4566:4566"            # LocalStack Gateway
+      - "4510-4559:4510-4559"  # external services port range
+    environment:
+      # LocalStack configuration
+      - DEBUG=1
+      - PERSISTENCE=1
+      - LAMBDA_EXECUTOR=docker
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - HOST_TMP_FOLDER=${TMPDIR:-/tmp/}localstack
+      
+      # AWS services to enable
+      - SERVICES=lambda,apigateway,ecs,ec2,s3,cloudwatch,logs,iam,sts,ssm,secretsmanager,codebuild,codedeploy,codepipeline,ecr
+      
+      # LocalStack Pro features (if available)
+      - LOCALSTACK_API_KEY=${LOCALSTACK_API_KEY:-}
+      
+      # Additional configuration
+      - LAMBDA_RUNTIME_ENVIRONMENT_TIMEOUT=60
+      - LAMBDA_DOCKER_NETWORK=localstack-network
+      
+    volumes:
+      - "${TMPDIR:-/tmp}/localstack:/var/lib/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "./:/workspace"
+    networks:
+      - localstack-network
+
+  # LocalStack Web UI (optional)
+  localstack-ui:
+    container_name: localstack-ui
+    image: localstack/localstack-ui:latest
+    ports:
+      - "8080:3000"
+    environment:
+      - LOCALSTACK_URL=http://localstack:4566
+    depends_on:
+      - localstack
+    networks:
+      - localstack-network
+
+networks:
+  localstack-network:
+    driver: bridge
+
+volumes:
+  localstack-data:

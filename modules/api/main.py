@@ -3,30 +3,32 @@ FastAPI アプリケーションのメインファイル
 CI/CDパイプライン比較用のシンプルなREST API
 """
 
-from datetime import datetime
-from typing import Dict, Any
-import os
+from datetime import UTC, datetime
+from typing import Any
+
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-# ルーターとエラーハンドラーのインポート
-from .routers import health, version, items
 from .exceptions import (
+    general_exception_handler,
     http_exception_handler,
     validation_exception_handler,
-    general_exception_handler
 )
+
+# ルーターとエラーハンドラーのインポート
+from .routers import health, items, version
 
 
 class Settings(BaseModel):
     """アプリケーション設定管理クラス"""
+
     app_name: str = "CI/CD Comparison API"
     version: str = "1.0.0"
     environment: str = "local"
     log_level: str = "INFO"
-    
+
     class Config:
         env_prefix = "APP_"
 
@@ -40,7 +42,7 @@ app = FastAPI(
     version=settings.version,
     description="GitHub Actions、GitLab CI/CD、AWS CodePipelineの比較用API",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
 )
 
 # CORS設定
@@ -64,13 +66,13 @@ app.include_router(items.router)
 
 
 @app.get("/")
-async def root() -> Dict[str, Any]:
+async def root() -> dict[str, Any]:
     """ルートエンドポイント"""
     return {
         "message": f"Welcome to {settings.app_name}",
         "version": settings.version,
         "environment": settings.environment,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
@@ -78,7 +80,7 @@ async def root() -> Dict[str, Any]:
 def lambda_handler(event, context):
     """AWS Lambda用のハンドラー関数"""
     from mangum import Mangum
-    
+
     # Mangumを使用してFastAPIアプリケーションをLambda対応にする
     handler = Mangum(app, lifespan="off")
     return handler(event, context)
@@ -86,10 +88,11 @@ def lambda_handler(event, context):
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
         port=8000,
         reload=True,
-        log_level=settings.log_level.lower()
+        log_level=settings.log_level.lower(),
     )

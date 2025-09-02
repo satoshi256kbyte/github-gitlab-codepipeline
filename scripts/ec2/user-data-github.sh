@@ -25,7 +25,7 @@ yum install -y ruby wget curl jq python3 python3-pip amazon-cloudwatch-agent bc
 # CodeDeployエージェントのインストール
 echo "Installing CodeDeploy agent..."
 cd /home/ec2-user
-wget https://aws-codedeploy-us-east-1.s3.us-east-1.amazonaws.com/latest/install
+wget https://aws-codedeploy-ap-northeast-1.s3.ap-northeast-1.amazonaws.com/latest/install
 chmod +x ./install
 ./install auto
 systemctl enable codedeploy-agent

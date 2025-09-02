@@ -144,7 +144,7 @@ act -j test
 
 ```bash
 # 特定の環境変数を設定して実行
-act -s AWS_DEFAULT_REGION=us-east-1 -s STAGE_NAME=dev
+act -s AWS_DEFAULT_REGION=ap-northeast-1 -s STAGE_NAME=dev
 ```
 
 #### ボリュームマウント

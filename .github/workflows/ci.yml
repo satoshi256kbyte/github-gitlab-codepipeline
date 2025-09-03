@@ -326,7 +326,8 @@ jobs:
 
       - name: Upload to S3
         run: |
-          BUCKET_NAME="${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-deployments"
+          ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+          BUCKET_NAME="comparison-local-${ACCOUNT_ID}-artifact-bucket"
           S3_KEY="ec2-deployments/${{ github.sha }}/deployment-package.zip"
 
           aws s3 cp deployment-package.zip s3://$BUCKET_NAME/$S3_KEY
@@ -335,8 +336,8 @@ jobs:
       - name: Deploy to EC2 using CodeDeploy
         run: |
           DEPLOYMENT_ID=$(aws deploy create-deployment \
-            --application-name "${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-ec2-app" \
-            --deployment-group-name "${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-ec2-dg" \
+            --application-name "github-${{ env.STAGE_NAME }}-ec2-app" \
+            --deployment-group-name "github-${{ env.STAGE_NAME }}-ec2-dg" \
             --deployment-config-name "CodeDeployDefault.EC2AllAtOnceBlueGreen" \
             --s3-location bucket="${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-deployments",key="ec2-deployments/${{ github.sha }}/deployment-package.zip",bundleType=zip \
             --region ${{ env.AWS_REGION }} \

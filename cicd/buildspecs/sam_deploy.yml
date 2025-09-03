@@ -13,7 +13,6 @@ phases:
     commands:
       - . cicd/scripts/common_env.sh
       - echo "Deploying SAM applications..."
-      - bash ./scripts/all_sam_build_deploy.sh --service-name $SERVICE_NAME --stage-name $STAGE_NAME --sam-bucket $SAM_S3_BUCKET
       - sam build --template-file template-codepipeline.yaml
       - sam deploy --template-file template-codepipeline.yaml \
           --no-confirm-changeset --no-fail-on-empty-changeset \

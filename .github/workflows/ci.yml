@@ -160,9 +160,9 @@ jobs:
           flags: unittests
           name: codecov-umbrella
 
-  # SCAチェックジョブ（Dependabot + CodeGuru Security）
+  # SCAチェックジョブ（Trivy)
   sca:
-    name: SCA (Dependabot + CodeGuru)
+    name: SCA (Trivy)
     runs-on: ubuntu-latest
     needs: prepare
     environment: production
@@ -199,42 +199,16 @@ jobs:
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
-      - name: Export requirements for CodeGuru Security
+      - name: Export requirements for Trivy
         run: |
           uv export --all-packages --no-dev --frozen --no-editable -o requirements.txt --no-emit-workspace --no-hashes --no-header
 
-      - name: Check for Dependabot alerts
-        run: |
-          echo "Dependabot automatically scans for vulnerabilities in dependencies"
-          echo "Check the Security tab in GitHub repository for Dependabot alerts"
-          echo "This step represents the Dependabot SCA scanning process"
-
-      - name: Configure AWS credentials via OIDC
-        # GitHub OIDCを使ってIAMロールを引き受ける
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Run Trivy vulnerability scanner in fs mode
+        uses: aquasecurity/trivy-action@master
         with:
-          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Run CodeGuru Security SCA scan
-        run: |
-          SCAN_NAME="${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-sca-$(date +%s)"
-          echo "Running CodeGuru Security SCA scan: $SCAN_NAME"
-          bash ./cicd/scripts/run_codeguru_security.sh $SCAN_NAME . ${{ env.AWS_REGION }}
-
-          # 脆弱性チェック
-          if [ -f "$SCAN_NAME.json" ]; then
-            CRITICAL_COUNT=$(jq '[.findings[] | select(.severity == "Critical")] | length' $SCAN_NAME.json)
-            HIGH_COUNT=$(jq '[.findings[] | select(.severity == "High")] | length' $SCAN_NAME.json)
-            
-            echo "SCA - Critical vulnerabilities: $CRITICAL_COUNT"
-            echo "SCA - High vulnerabilities: $HIGH_COUNT"
-            
-            if [ "$CRITICAL_COUNT" -gt 0 ]; then
-              echo "ERROR: Found $CRITICAL_COUNT critical vulnerabilities in SCA scan"
-              exit 1
-            fi
-          fi
+            scan-type: 'fs'
+            scan-ref: '.'
+            trivy-config: trivy-config.yaml
 
   # SASTチェックジョブ（CodeQL + CodeGuru Security）
   sast:

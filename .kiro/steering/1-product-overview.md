@@ -46,7 +46,7 @@ Amazon ECS Cluster、Amazon EC2に関してはBlue/Greenデプロイを行いま
 ├── cdk/                    # AWS CDKインフラコード
 ├── modules/
 │   └── api/                # FastAPI アプリケーション
-├── codepipeline/           # CodePipelineで使用するbuildspecなど
+├── cicd/           # CodePipelineで使用するbuildspecなど
 │   ├── buildspecs/         # CodeBuild用buildspecファイル
 │   └── scripts/            # CodePipeline用スクリプト
 └── docs/                   # ドキュメント
@@ -66,15 +66,15 @@ version: 0.2
 phases:
   install:
     commands:
-      - bash codepipeline/buildspecs/common_install.sh
+      - bash cicd/buildspecs/common_install.sh
 
   pre_build:
     commands:
-      - bash codepipeline/buildspecs/common_pre_build.sh
+      - bash cicd/buildspecs/common_pre_build.sh
 
   build:
     commands:
-      - . codepipeline/buildspecs/common_env.sh
+      - . cicd/buildspecs/common_env.sh
       - echo "Export all workspace dependencies to requirements.txt for Amazon Inspector compatibility"
       - uv export --all-packages --no-dev --frozen --no-editable -o requirements.txt --no-emit-workspace --no-hashes --no-header
 
@@ -110,15 +110,15 @@ version: 0.2
 phases:
   install:
     commands:
-      - bash codepipeline/buildspecs/common_install.sh
+      - bash cicd/buildspecs/common_install.sh
 
   pre_build:
     commands:
-      - bash codepipeline/buildspecs/common_pre_build.sh
+      - bash cicd/buildspecs/common_pre_build.sh
 
   build:
     commands:
-      - . codepipeline/buildspecs/common_env.sh
+      - . cicd/buildspecs/common_env.sh
       - echo "Running static analysis..."
       - npm run lint
 
@@ -241,20 +241,20 @@ version: 0.2
 phases:
   install:
     commands:
-      - bash codepipeline/buildspecs/common_install.sh
+      - bash cicd/buildspecs/common_install.sh
 
   pre_build:
     commands:
-      - bash codepipeline/buildspecs/common_pre_build.sh --dev
+      - bash cicd/buildspecs/common_pre_build.sh --dev
 
   build:
     commands:
-      - . codepipeline/buildspecs/common_env.sh
+      - . cicd/buildspecs/common_env.sh
       - echo "Running SAST scan with Amazon CodeGuru Security..."
       - SCAN_NAME="${SERVICE_NAME}-${STAGE_NAME}-$(date +%s)"
       - echo "Scan name:$SCAN_NAME"
       - zip -r /tmp/source-code.zip . -x "*.git*" "node_modules/*" "*.pyc" "__pycache__/*" ".venv/*"
-      - bash ./codepipeline/buildspecs/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION
+      - bash ./cicd/buildspecs/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION
       - echo "SAST scan completed"
 
   post_build:

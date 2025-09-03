@@ -323,7 +323,7 @@ Resources:
                 FullRepositoryId: !Ref RepositoryId
                 BranchName: !Ref BranchName
               RunOrder: 1
-        - Name: StaticAnalysis
+        - Name: Check
           Actions:
             - Name: Prepare
               ActionTypeId:
@@ -337,7 +337,7 @@ Resources:
                 - Name: PrepareOutput
               Configuration:
                 ProjectName: !Ref StaticAnalysisCodeBuildProject
-                BuildspecOverride: codepipeline/buildspecs/prepare.yml
+                BuildspecOverride: cicd/buildspecs/prepare.yml
               RunOrder: 1
             - Name: SCA
               ActionTypeId:
@@ -363,7 +363,7 @@ Resources:
                 - Name: SourceOutput
               Configuration:
                 ProjectName: !Ref StaticAnalysisCodeBuildProject
-                BuildspecOverride: codepipeline/buildspecs/lint.yml
+                BuildspecOverride: cicd/buildspecs/lint.yml
               RunOrder: 2
             - Name: UnitTest
               ActionTypeId:
@@ -375,9 +375,9 @@ Resources:
                 - Name: SourceOutput
               Configuration:
                 ProjectName: !Ref StaticAnalysisCodeBuildProject
-                BuildspecOverride: codepipeline/buildspecs/unit_test.yml
+                BuildspecOverride: cicd/buildspecs/unit_test.yml
               RunOrder: 2
-            - Name: SASTScan
+            - Name: SAST
               ActionTypeId:
                 Category: Build
                 Owner: AWS
@@ -389,7 +389,7 @@ Resources:
                 - Name: SASTScanOutput
               Configuration:
                 ProjectName: !Ref StaticAnalysisCodeBuildProject
-                BuildspecOverride: codepipeline/buildspecs/sast.yml
+                BuildspecOverride: cicd/buildspecs/sast.yml
               RunOrder: 2
         - Name: Deploy
           Actions:
@@ -403,7 +403,7 @@ Resources:
                 - Name: SourceOutput
               Configuration:
                 ProjectName: !Ref BuildAndDeployCodeBuildProject
-                BuildspecOverride: codepipeline/buildspecs/sam_deploy.yml
+                BuildspecOverride: cicd/buildspecs/sam_deploy.yml
               RunOrder: 3
       Tags:
         - Key: Name
@@ -447,7 +447,7 @@ Resources:
                   - logs:CreateLogGroup
                   - logs:CreateLogStream
                   - logs:PutLogEvents
-                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codepipeline/${ServiceName}-${StageName}-codepipeline*'
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/cicd/${ServiceName}-${StageName}-codepipeline*'
               - Effect: Allow
                 Action:
                   - iam:PassRole

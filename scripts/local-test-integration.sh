@@ -231,7 +231,7 @@ test_codepipeline_buildspecs() {
     export AWS_SECRET_ACCESS_KEY=test
     
     # Source common environment
-    source codepipeline/buildspecs/common_env.sh
+    source cicd/buildspecs/common_env.sh
     
     log_info "Testing CodePipeline buildspec phases..."
     
@@ -241,7 +241,7 @@ test_codepipeline_buildspecs() {
     for buildspec in "${buildspecs[@]}"; do
         log_info "Testing buildspec: $buildspec"
         
-        local buildspec_file="codepipeline/buildspecs/${buildspec}.yml"
+        local buildspec_file="cicd/buildspecs/${buildspec}.yml"
         
         if [ ! -f "$buildspec_file" ]; then
             log_warning "Buildspec file not found: $buildspec_file"
@@ -252,14 +252,14 @@ test_codepipeline_buildspecs() {
         log_info "Simulating install phase for $buildspec..."
         if [[ "$OSTYPE" == "darwin"* ]]; then
             # macOS
-            if bash codepipeline/buildspecs/common_install_macos.sh; then
+            if bash cicd/buildspecs/common_install_macos.sh; then
                 log_success "Install phase completed for $buildspec"
             else
                 log_error "Install phase failed for $buildspec"
                 failed_buildspecs+=("$buildspec")
                 continue
             fi
-        elif bash codepipeline/buildspecs/common_install.sh; then
+        elif bash cicd/buildspecs/common_install.sh; then
             log_success "Install phase completed for $buildspec"
         else
             log_error "Install phase failed for $buildspec"
@@ -270,14 +270,14 @@ test_codepipeline_buildspecs() {
         log_info "Simulating pre_build phase for $buildspec..."
         if [[ "$OSTYPE" == "darwin"* ]]; then
             # macOS
-            if bash codepipeline/buildspecs/common_pre_build_macos.sh; then
+            if bash cicd/buildspecs/common_pre_build_macos.sh; then
                 log_success "Pre_build phase completed for $buildspec"
             else
                 log_error "Pre_build phase failed for $buildspec"
                 failed_buildspecs+=("$buildspec")
                 continue
             fi
-        elif bash codepipeline/buildspecs/common_pre_build.sh; then
+        elif bash cicd/buildspecs/common_pre_build.sh; then
             log_success "Pre_build phase completed for $buildspec"
         else
             log_error "Pre_build phase failed for $buildspec"

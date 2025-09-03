@@ -3,15 +3,15 @@ version: 0.2
 phases:
   install:
     commands:
-      - bash codepipeline/scripts/common_install.sh
+      - bash cicd/scripts/common_install.sh
 
   pre_build:
     commands:
-      - bash codepipeline/scripts/common_pre_build.sh
+      - bash cicd/scripts/common_pre_build.sh
 
   build:
     commands:
-      - . codepipeline/scripts/common_env.sh
+      - . cicd/scripts/common_env.sh
       - echo "Deploying SAM applications..."
       - bash ./scripts/all_sam_build_deploy.sh --service-name $SERVICE_NAME --stage-name $STAGE_NAME --sam-bucket $SAM_S3_BUCKET
 

@@ -110,7 +110,7 @@ GitHub Actions、GitLab CI/CD、AWS CodePipelineの3つのCI/CDツールを使�
 
 **認証**: GitLab CI/CD変数でAWS認証情報管理
 
-#### AWS CodePipeline (`codepipeline/`)
+#### AWS CodePipeline (`cicd/`)
 
 **パイプライン構成**:
 

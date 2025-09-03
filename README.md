@@ -50,7 +50,7 @@ GitHub ActionsとGitLab CI/CDの2つのCI/CDツールでパイプラインを構
 ├── cdk/                    # AWS CDKインフラコード
 ├── modules/
 │   └── api/                # FastAPI アプリケーション
-├── codepipeline/           # 削除済み（CodePipelineアプローチは廃止）
+├── cicd/           # 削除済み（CodePipelineアプローチは廃止）
 └── docs/                   # ドキュメント
 ```
 

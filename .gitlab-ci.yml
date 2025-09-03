@@ -264,7 +264,7 @@ sca_check:
       SCAN_NAME="${CICD_TOOL}-${SERVICE_NAME}-${STAGE_NAME}-sca-$(date +%s)"
       echo "Scan name: $SCAN_NAME"
       zip -r /tmp/source-code.zip . -x "*.git*" "node_modules/*" "*.pyc" "__pycache__/*" ".venv/*" ".cache/*"
-      bash ./scripts/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION
+      bash ./cicd/scripts/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION
       
       echo "Analyzing CodeGuru Security SCA results..."
       CRITICAL_COUNT=$(jq '[.findings[] | select(.severity == "Critical")] | length' $SCAN_NAME.json)
@@ -307,7 +307,7 @@ sast_check:
       SCAN_NAME="${CICD_TOOL}-${SERVICE_NAME}-${STAGE_NAME}-sast-$(date +%s)"
       echo "Scan name: $SCAN_NAME"
       zip -r /tmp/source-code.zip . -x "*.git*" "node_modules/*" "*.pyc" "__pycache__/*" ".venv/*" ".cache/*"
-      bash ./scripts/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION
+      bash ./cicd/scripts/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION
       
       echo "Analyzing CodeGuru Security SAST results..."
       CRITICAL_COUNT=$(jq '[.findings[] | select(.severity == "Critical")] | length' $SCAN_NAME.json)

@@ -3,15 +3,15 @@ version: 0.2
 phases:
   install:
     commands:
-      - bash codepipeline/scripts/common_install.sh
+      - bash cicd/scripts/common_install.sh
 
   pre_build:
     commands:
-      - bash codepipeline/scripts/common_pre_build.sh --dev
+      - bash cicd/scripts/common_pre_build.sh --dev
 
   build:
     commands:
-      - . codepipeline/scripts/common_env.sh
+      - . cicd/scripts/common_env.sh
       - echo "Running unit tests..."
       - npm run test
 

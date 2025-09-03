@@ -382,7 +382,7 @@ aws codepipeline start-pipeline-execution \
 aws logs tail /aws/codebuild/codepipeline-local-lint-build --follow
 
 # buildspecファイルの検証
-python -c "import yaml; yaml.safe_load(open('codepipeline/buildspecs/lint.yml'))"
+python -c "import yaml; yaml.safe_load(open('cicd/buildspecs/lint.yml'))"
 
 # 環境変数の確認
 aws codebuild batch-get-projects \
@@ -394,7 +394,7 @@ docker run --rm -it \
   -v $(pwd):/workspace \
   -w /workspace \
   aws/codebuild/standard:5.0 \
-  bash -c "bash codepipeline/buildspecs/common_install.sh && bash codepipeline/buildspecs/lint.yml"
+  bash -c "bash cicd/buildspecs/common_install.sh && bash cicd/buildspecs/lint.yml"
 ```
 
 #### IAMロール権限問題

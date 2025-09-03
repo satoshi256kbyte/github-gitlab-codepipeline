@@ -201,7 +201,7 @@ jobs:
         run: |
           SCAN_NAME="${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-sca-$(date +%s)"
           echo "Running CodeGuru Security SCA scan: $SCAN_NAME"
-          bash ./scripts/run_codeguru_security.sh $SCAN_NAME . ${{ env.AWS_REGION }}
+          bash ./cicd/scripts/run_codeguru_security.sh $SCAN_NAME . ${{ env.AWS_REGION }}
 
           # 脆弱性チェック
           if [ -f "$SCAN_NAME.json" ]; then
@@ -269,7 +269,7 @@ jobs:
           SCAN_NAME="${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-sast-$(date +%s)"
           echo "Running CodeGuru Security SAST scan: $SCAN_NAME"
           zip -r /tmp/source-code.zip . -x "*.git*" "node_modules/*" "*.pyc" "__pycache__/*" ".venv/*"
-          bash ./scripts/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip ${{ env.AWS_REGION }}
+          bash ./cicd/scripts/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip ${{ env.AWS_REGION }}
 
           # 脆弱性チェック
           if [ -f "$SCAN_NAME.json" ]; then

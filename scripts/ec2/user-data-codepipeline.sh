@@ -89,7 +89,7 @@ cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << 'EOF'
     }
   },
   "metrics": {
-    "namespace": "CodePipeline/EC2",
+    "namespace": "cicd/EC2",
     "metrics_collected": {
       "cpu": {
         "measurement": [

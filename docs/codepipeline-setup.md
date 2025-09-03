@@ -309,7 +309,7 @@ export class PipelineStack extends cdk.Stack {
         buildImage: codebuild.LinuxBuildImage.STANDARD_7_0,
         computeType: codebuild.ComputeType.SMALL,
       },
-      buildSpec: codebuild.BuildSpec.fromSourceFilename('codepipeline/buildspecs/cache.yml'),
+      buildSpec: codebuild.BuildSpec.fromSourceFilename('cicd/buildspecs/cache.yml'),
       cache: codebuild.Cache.local(codebuild.LocalCacheMode.DOCKER_LAYER, codebuild.LocalCacheMode.CUSTOM),
     });
   }
@@ -395,7 +395,7 @@ aws codepipeline create-pipeline --cli-input-json file://pipeline.json
 
 ### キャッシュ作成プロジェクト
 
-`codepipeline/buildspecs/cache.yml`：
+`cicd/buildspecs/cache.yml`：
 
 ```yaml
 version: 0.2
@@ -403,15 +403,15 @@ version: 0.2
 phases:
   install:
     commands:
-      - bash codepipeline/buildspecs/common_install.sh
+      - bash cicd/buildspecs/common_install.sh
 
   pre_build:
     commands:
-      - bash codepipeline/buildspecs/common_pre_build.sh
+      - bash cicd/buildspecs/common_pre_build.sh
 
   build:
     commands:
-      - . codepipeline/buildspecs/common_env.sh
+      - . cicd/buildspecs/common_env.sh
       - echo "Creating cache for dependencies..."
       - uv sync --dev
       - echo "Cache creation completed"
@@ -439,7 +439,7 @@ cache:
 
 ### 静的解析プロジェクト
 
-`codepipeline/buildspecs/lint.yml`：
+`cicd/buildspecs/lint.yml`：
 
 ```yaml
 version: 0.2
@@ -447,15 +447,15 @@ version: 0.2
 phases:
   install:
     commands:
-      - bash codepipeline/buildspecs/common_install.sh
+      - bash cicd/buildspecs/common_install.sh
 
   pre_build:
     commands:
-      - bash codepipeline/buildspecs/common_pre_build.sh
+      - bash cicd/buildspecs/common_pre_build.sh
 
   build:
     commands:
-      - . codepipeline/buildspecs/common_env.sh
+      - . cicd/buildspecs/common_env.sh
       - echo "Running static analysis..."
       - uv run ruff check .
       - uv run black --check .
@@ -485,7 +485,7 @@ cache:
 
 ### ユニットテストプロジェクト
 
-`codepipeline/buildspecs/test.yml`：
+`cicd/buildspecs/test.yml`：
 
 ```yaml
 version: 0.2
@@ -493,15 +493,15 @@ version: 0.2
 phases:
   install:
     commands:
-      - bash codepipeline/buildspecs/common_install.sh
+      - bash cicd/buildspecs/common_install.sh
 
   pre_build:
     commands:
-      - bash codepipeline/buildspecs/common_pre_build.sh
+      - bash cicd/buildspecs/common_pre_build.sh
 
   build:
     commands:
-      - . codepipeline/buildspecs/common_env.sh
+      - . cicd/buildspecs/common_env.sh
       - echo "Running unit tests..."
       - uv run pytest --cov=modules/api --cov-report=xml --cov-report=html --junitxml=test-results.xml
 
@@ -539,7 +539,7 @@ cache:
 
 ### SCAチェックプロジェクト
 
-`codepipeline/buildspecs/sca.yml`：
+`cicd/buildspecs/sca.yml`：
 
 ```yaml
 version: 0.2
@@ -547,20 +547,20 @@ version: 0.2
 phases:
   install:
     commands:
-      - bash codepipeline/buildspecs/common_install.sh
+      - bash cicd/buildspecs/common_install.sh
 
   pre_build:
     commands:
-      - bash codepipeline/buildspecs/common_pre_build.sh
+      - bash cicd/buildspecs/common_pre_build.sh
 
   build:
     commands:
-      - . codepipeline/buildspecs/common_env.sh
+      - . cicd/buildspecs/common_env.sh
       - echo "Running SCA scan with CodeGuru Security..."
       - SCAN_NAME="${SERVICE_NAME}-${STAGE_NAME}-sca-$(date +%s)"
       - echo "Scan name: $SCAN_NAME"
       - zip -r /tmp/source-code.zip . -x "*.git*" "node_modules/*" "*.pyc" "__pycache__/*" ".venv/*"
-      - bash ./codepipeline/buildspecs/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION
+      - bash ./cicd/buildspecs/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION
 
   post_build:
     commands:
@@ -601,7 +601,7 @@ cache:
 
 ### SASTチェックプロジェクト
 
-`codepipeline/buildspecs/sast.yml`：
+`cicd/buildspecs/sast.yml`：
 
 ```yaml
 version: 0.2
@@ -609,20 +609,20 @@ version: 0.2
 phases:
   install:
     commands:
-      - bash codepipeline/buildspecs/common_install.sh
+      - bash cicd/buildspecs/common_install.sh
 
   pre_build:
     commands:
-      - bash codepipeline/buildspecs/common_pre_build.sh
+      - bash cicd/buildspecs/common_pre_build.sh
 
   build:
     commands:
-      - . codepipeline/buildspecs/common_env.sh
+      - . cicd/buildspecs/common_env.sh
       - echo "Running SAST scan with Amazon Inspector..."
       - SCAN_NAME="${SERVICE_NAME}-${STAGE_NAME}-sast-$(date +%s)"
       - echo "Scan name: $SCAN_NAME"
       - zip -r /tmp/source-code.zip . -x "*.git*" "node_modules/*" "*.pyc" "__pycache__/*" ".venv/*"
-      - bash ./codepipeline/buildspecs/run_inspector_scan.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION
+      - bash ./cicd/buildspecs/run_inspector_scan.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION
 
   post_build:
     commands:
@@ -665,7 +665,7 @@ cache:
 
 ### Lambda デプロイ
 
-`codepipeline/buildspecs/deploy_lambda.yml`：
+`cicd/buildspecs/deploy_lambda.yml`：
 
 ```yaml
 version: 0.2
@@ -673,16 +673,16 @@ version: 0.2
 phases:
   install:
     commands:
-      - bash codepipeline/buildspecs/common_install.sh
+      - bash cicd/buildspecs/common_install.sh
       - pip install aws-sam-cli
 
   pre_build:
     commands:
-      - bash codepipeline/buildspecs/common_pre_build.sh
+      - bash cicd/buildspecs/common_pre_build.sh
 
   build:
     commands:
-      - . codepipeline/buildspecs/common_env.sh
+      - . cicd/buildspecs/common_env.sh
       - echo "Building SAM application..."
       - sam build
       - echo "Deploying to Lambda..."
@@ -708,7 +708,7 @@ cache:
 
 ### ECS デプロイ
 
-`codepipeline/buildspecs/deploy-ecs.yml`：
+`cicd/buildspecs/deploy-ecs.yml`：
 
 ```yaml
 version: 0.2
@@ -716,11 +716,11 @@ version: 0.2
 phases:
   install:
     commands:
-      - bash codepipeline/buildspecs/common_install.sh
+      - bash cicd/buildspecs/common_install.sh
 
   pre_build:
     commands:
-      - bash codepipeline/buildspecs/common_pre_build.sh
+      - bash cicd/buildspecs/common_pre_build.sh
       - echo Logging in to Amazon ECR...
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
       - REPOSITORY_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME
@@ -729,7 +729,7 @@ phases:
 
   build:
     commands:
-      - . codepipeline/buildspecs/common_env.sh
+      - . cicd/buildspecs/common_env.sh
       - echo Build started on `date`
       - echo Building the Docker image...
       - docker build -t $IMAGE_REPO_NAME .
@@ -767,7 +767,7 @@ cache:
 
 ### EC2 デプロイ
 
-`codepipeline/buildspecs/deploy_ec2.yml`：
+`cicd/buildspecs/deploy_ec2.yml`：
 
 ```yaml
 version: 0.2
@@ -775,15 +775,15 @@ version: 0.2
 phases:
   install:
     commands:
-      - bash codepipeline/buildspecs/common_install.sh
+      - bash cicd/buildspecs/common_install.sh
 
   pre_build:
     commands:
-      - bash codepipeline/buildspecs/common_pre_build.sh
+      - bash cicd/buildspecs/common_pre_build.sh
 
   build:
     commands:
-      - . codepipeline/buildspecs/common_env.sh
+      - . cicd/buildspecs/common_env.sh
       - echo "Preparing EC2 deployment package..."
       - zip -r deployment.zip . -x "*.git*" ".cache/*" ".venv/*" "node_modules/*" "*.zip"
       - echo "Uploading deployment package to S3..."
@@ -1036,7 +1036,7 @@ environment: {
 
 ## 📚 参考資料
 
-- [AWS CodePipeline Documentation](https://docs.aws.amazon.com/codepipeline/)
+- [AWS CodePipeline Documentation](https://docs.aws.amazon.com/cicd/)
 - [AWS CodeBuild Documentation](https://docs.aws.amazon.com/codebuild/)
 - [AWS CodeDeploy Documentation](https://docs.aws.amazon.com/codedeploy/)
 - [AWS CDK Documentation](https://docs.aws.amazon.com/cdk/)

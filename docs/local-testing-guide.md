@@ -327,13 +327,13 @@ docker run --rm -it \
   -w /workspace \
   aws/codebuild/standard:5.0 \
   bash -c "
-    source codepipeline/buildspecs/common_install.sh &&
-    source codepipeline/buildspecs/common_pre_build.sh &&
-    bash codepipeline/buildspecs/lint.yml
+    source cicd/buildspecs/common_install.sh &&
+    source cicd/buildspecs/common_pre_build.sh &&
+    bash cicd/buildspecs/lint.yml
   "
 
 # 特定のbuildspecファイルのテスト
-for buildspec in codepipeline/buildspecs/*.yml; do
+for buildspec in cicd/buildspecs/*.yml; do
   echo "Testing $buildspec..."
   docker run --rm -it \
     -v $(pwd):/workspace \
@@ -342,11 +342,11 @@ for buildspec in codepipeline/buildspecs/*.yml; do
     -e AWS_ACCOUNT_ID=123456789012 \
     aws/codebuild/standard:5.0 \
     bash -c "
-      if [ -f codepipeline/buildspecs/common_install.sh ]; then
-        bash codepipeline/buildspecs/common_install.sh
+      if [ -f cicd/buildspecs/common_install.sh ]; then
+        bash cicd/buildspecs/common_install.sh
       fi &&
-      if [ -f codepipeline/buildspecs/common_pre_build.sh ]; then
-        bash codepipeline/buildspecs/common_pre_build.sh
+      if [ -f cicd/buildspecs/common_pre_build.sh ]; then
+        bash cicd/buildspecs/common_pre_build.sh
       fi &&
       # buildspecファイルの内容を実行
       echo 'Simulating buildspec execution for $buildspec'
@@ -394,16 +394,16 @@ aws --endpoint-url=http://localhost:4566 codebuild create-project \
 
 ```bash
 # 静的解析buildspecのテスト
-./scripts/test-buildspec.sh codepipeline/buildspecs/lint.yml
+./scripts/test-buildspec.sh cicd/buildspecs/lint.yml
 
 # ユニットテストbuildspecのテスト
-./scripts/test-buildspec.sh codepipeline/buildspecs/test.yml
+./scripts/test-buildspec.sh cicd/buildspecs/test.yml
 
 # SCAチェックbuildspecのテスト
-./scripts/test-buildspec.sh codepipeline/buildspecs/sca.yml
+./scripts/test-buildspec.sh cicd/buildspecs/sca.yml
 
 # SASTチェックbuildspecのテスト
-./scripts/test-buildspec.sh codepipeline/buildspecs/sast.yml
+./scripts/test-buildspec.sh cicd/buildspecs/sast.yml
 ```
 
 ## 🧪 統合テスト
@@ -429,7 +429,7 @@ aws --endpoint-url=http://localhost:4566 codebuild create-project \
 # ローカル実行時間の測定
 time act -j test
 time gitlab-runner exec docker test
-time ./scripts/test-buildspec.sh codepipeline/buildspecs/test.yml
+time ./scripts/test-buildspec.sh cicd/buildspecs/test.yml
 
 # 比較レポートの生成
 python scripts/analyze-cicd-configs.py --local-mode
@@ -448,7 +448,7 @@ act --list
 python -c "import yaml; print('GitLab CI/CD YAML is valid')" < .gitlab-ci.yml
 
 # buildspecファイルの検証
-for file in codepipeline/buildspecs/*.yml; do
+for file in cicd/buildspecs/*.yml; do
   echo "Validating $file..."
   python -c "import yaml; yaml.safe_load(open('$file'))"
 done

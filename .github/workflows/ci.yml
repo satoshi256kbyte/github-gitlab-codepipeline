@@ -38,7 +38,7 @@ jobs:
           echo "Cache key: $CACHE_KEY"
 
       - name: Setup asdf
-        uses: asdf-vm/actions/setup@v3.0.2
+        uses: asdf-vm/actions/setup@v3
 
       - name: Install tools via asdf
         run: |
@@ -58,7 +58,6 @@ jobs:
             ~/.cache/pip
             ~/.cache/uv
             ~/.cargo
-            ~/.asdf/installs
             ~/.local/bin
             node_modules
           key: ${{ steps.cache-key.outputs.key }}
@@ -88,13 +87,12 @@ jobs:
             ~/.cache/pip
             ~/.cache/uv
             ~/.cargo
-            ~/.asdf/installs
             ~/.local/bin
             node_modules
           key: ${{ needs.prepare.outputs.cache-key }}
 
       - name: Setup asdf
-        uses: asdf-vm/actions/setup@v3.0.2
+        uses: asdf-vm/actions/setup@v3
 
       - name: Install tools via asdf
         run: asdf install
@@ -130,13 +128,12 @@ jobs:
             ~/.cache/pip
             ~/.cache/uv
             ~/.cargo
-            ~/.asdf/installs
             ~/.local/bin
             node_modules
           key: ${{ needs.prepare.outputs.cache-key }}
 
       - name: Setup asdf
-        uses: asdf-vm/actions/setup@v3.0.2
+        uses: asdf-vm/actions/setup@v3
 
       - name: Install tools via asdf
         run: asdf install
@@ -178,13 +175,12 @@ jobs:
             ~/.cache/pip
             ~/.cache/uv
             ~/.cargo
-            ~/.asdf/installs
             ~/.local/bin
             node_modules
           key: ${{ needs.prepare.outputs.cache-key }}
 
       - name: Setup asdf
-        uses: asdf-vm/actions/setup@v3.0.2
+        uses: asdf-vm/actions/setup@v3
 
       - name: Install tools via asdf
         run: asdf install
@@ -257,13 +253,12 @@ jobs:
             ~/.cache/pip
             ~/.cache/uv
             ~/.cargo
-            ~/.asdf/installs
             ~/.local/bin
             node_modules
           key: ${{ needs.prepare.outputs.cache-key }}
 
       - name: Setup asdf
-        uses: asdf-vm/actions/setup@v3.0.2
+        uses: asdf-vm/actions/setup@v3
 
       - name: Install tools via asdf
         run: asdf install
@@ -320,7 +315,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup asdf
-        uses: asdf-vm/actions/setup@v3.0.2
+        uses: asdf-vm/actions/setup@v3
 
       - name: Install tools via asdf
         run: asdf install

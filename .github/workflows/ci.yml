@@ -338,7 +338,7 @@ jobs:
           DEPLOYMENT_ID=$(aws deploy create-deployment \
             --application-name "github-local-codedeploy-app" \
             --deployment-group-name "github-local-codedeploy-dg" \
-            --deployment-config-name "CodeDeployDefault.EC2AllAtOnceBlueGreen" \
+            --deployment-config-name "CodeDeployDefault.AllAtOnce" \
             --s3-location bucket="${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-deployments",key="ec2-deployments/${{ github.sha }}/deployment-package.zip",bundleType=zip \
             --region ${{ env.AWS_REGION }} \
             --query "deploymentId" \

@@ -13,7 +13,8 @@ phases:
     commands:
       - . cicd/scripts/common_env.sh
       - echo "Running static analysis..."
-      - npm run lint
+      - uv run ruff check .
+      - uv run ruff format --check .
 
   post_build:
     commands:

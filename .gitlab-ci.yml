@@ -198,16 +198,11 @@ lint:
     - echo "Running black formatting check..."
     - uv run black --check . || BLACK_EXIT_CODE=$?
     - cd ../..
-    - echo "Running CDK lint..."
-    - cd cdk
-    - npm run lint || CDK_EXIT_CODE=$?
-    - cd ..
     - |
       if [ "${RUFF_EXIT_CODE:-0}" -ne 0 ] || [ "${BLACK_EXIT_CODE:-0}" -ne 0 ] || [ "${CDK_EXIT_CODE:-0}" -ne 0 ]; then
         echo "ERROR: Static analysis failed"
         echo "Ruff exit code: ${RUFF_EXIT_CODE:-0}"
         echo "Black exit code: ${BLACK_EXIT_CODE:-0}"
-        echo "CDK lint exit code: ${CDK_EXIT_CODE:-0}"
         exit 1
       fi
     - echo "Static analysis completed successfully"

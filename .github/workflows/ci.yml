@@ -335,10 +335,34 @@ jobs:
 
       - name: Deploy to EC2 using CodeDeploy
         run: |
+          # 既存のアクティブなデプロイメントを確認・停止
+          echo "Checking for active deployments..."
+          ACTIVE_DEPLOYMENTS=$(aws deploy list-deployments \
+            --application-name "github-local-codedeploy-app" \
+            --deployment-group-name "github-local-codedeploy-dg" \
+            --include-only-statuses "Created" "Queued" "InProgress" \
+            --query "deployments" \
+            --output text \
+            --region ${{ env.AWS_REGION }})
+          
+          if [ ! -z "$ACTIVE_DEPLOYMENTS" ] && [ "$ACTIVE_DEPLOYMENTS" != "None" ]; then
+            echo "Found active deployment(s): $ACTIVE_DEPLOYMENTS"
+            for DEPLOYMENT_ID in $ACTIVE_DEPLOYMENTS; do
+              echo "Stopping deployment: $DEPLOYMENT_ID"
+              aws deploy stop-deployment \
+                --deployment-id $DEPLOYMENT_ID \
+                --auto-rollback-enabled \
+                --region ${{ env.AWS_REGION }} || true
+            done
+            echo "Waiting for deployments to stop..."
+            sleep 30
+          fi
+          
+          # 新しいデプロイメントを作成
           DEPLOYMENT_ID=$(aws deploy create-deployment \
             --application-name "github-local-codedeploy-app" \
             --deployment-group-name "github-local-codedeploy-dg" \
-            --deployment-config-name "CodeDeployDefault.AllAtOnce" \
+            --deployment-config-name "CodeDeployDefault.OneAtATime" \
             --s3-location bucket="${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-deployments",key="ec2-deployments/${{ github.sha }}/deployment-package.zip",bundleType=zip \
             --region ${{ env.AWS_REGION }} \
             --query "deploymentId" \

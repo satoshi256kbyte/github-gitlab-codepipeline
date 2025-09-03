@@ -58,7 +58,6 @@ jobs:
             ~/.cache/pip
             ~/.cache/uv
             ~/.cargo
-            ~/.asdf
             ~/.local/bin
             node_modules
           key: ${{ steps.cache-key.outputs.key }}
@@ -88,7 +87,6 @@ jobs:
             ~/.cache/pip
             ~/.cache/uv
             ~/.cargo
-            ~/.asdf
             ~/.local/bin
             node_modules
           key: ${{ needs.prepare.outputs.cache-key }}
@@ -133,7 +131,6 @@ jobs:
             ~/.cache/pip
             ~/.cache/uv
             ~/.cargo
-            ~/.asdf
             ~/.local/bin
             node_modules
           key: ${{ needs.prepare.outputs.cache-key }}
@@ -184,7 +181,6 @@ jobs:
             ~/.cache/pip
             ~/.cache/uv
             ~/.cargo
-            ~/.asdf
             ~/.local/bin
             node_modules
           key: ${{ needs.prepare.outputs.cache-key }}
@@ -266,7 +262,6 @@ jobs:
             ~/.cache/pip
             ~/.cache/uv
             ~/.cargo
-            ~/.asdf
             ~/.local/bin
             node_modules
           key: ${{ needs.prepare.outputs.cache-key }}

@@ -112,7 +112,7 @@ Resources:
       FunctionName: !Ref ApiFunction
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
-      SourceArn: !Sub "${ApiGateway}/*/ANY/*"
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGateway}/*/ANY/*"
 
   LambdaApiGatewayRootPermission:
     Type: AWS::Lambda::Permission
@@ -120,7 +120,7 @@ Resources:
       FunctionName: !Ref ApiFunction
       Action: lambda:InvokeFunction
       Principal: apigateway.amazonaws.com
-      SourceArn: !Sub "${ApiGateway}/*/ANY/"
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiGateway}/*/ANY/"
 
 Outputs:
   ApiGatewayUrl:

@@ -148,9 +148,9 @@ class TestApplicationIntegration:
 
         for endpoint, expected_status in endpoints:
             response = client.get(endpoint)
-            assert (
-                response.status_code == expected_status
-            ), f"エンドポイント {endpoint} が期待されたステータス {expected_status} を返しませんでした"
+            assert response.status_code == expected_status, (
+                f"エンドポイント {endpoint} が期待されたステータス {expected_status} を返しませんでした"
+            )
 
     @pytest.mark.integration
     def test_error_handling_consistency(self, client: TestClient):

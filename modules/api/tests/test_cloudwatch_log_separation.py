@@ -81,9 +81,9 @@ class TestCloudWatchLogSeparation:
             # 各CI/CDツールのロググループが存在することを確認
             for tool_name, deployments in self.log_group_patterns.items():
                 for deployment_type, log_group_name in deployments.items():
-                    assert (
-                        log_group_name in existing_log_groups
-                    ), f"Log group {log_group_name} for {tool_name} {deployment_type} not found"
+                    assert log_group_name in existing_log_groups, (
+                        f"Log group {log_group_name} for {tool_name} {deployment_type} not found"
+                    )
 
         except Exception as e:
             pytest.skip(f"Could not access CloudWatch logs: {e}")
@@ -105,14 +105,14 @@ class TestCloudWatchLogSeparation:
                 for deployment_type, log_group_name in deployments.items():
                     # 命名規則: /aws/{service}/{tool}-local-{deployment}-api
                     expected_pattern = f"/aws/{deployment_type}/{tool_name}-local-{deployment_type}-api"
-                    assert (
-                        log_group_name == expected_pattern
-                    ), f"Log group name {log_group_name} doesn't match expected pattern {expected_pattern}"
+                    assert log_group_name == expected_pattern, (
+                        f"Log group name {log_group_name} doesn't match expected pattern {expected_pattern}"
+                    )
 
                     # ツール名がロググループ名に含まれていることを確認
-                    assert (
-                        tool_name in log_group_name
-                    ), f"Tool name {tool_name} not found in log group name {log_group_name}"
+                    assert tool_name in log_group_name, (
+                        f"Tool name {tool_name} not found in log group name {log_group_name}"
+                    )
 
         except Exception as e:
             pytest.skip(f"Could not validate log group naming: {e}")
@@ -162,15 +162,15 @@ class TestCloudWatchLogSeparation:
                 # ツール名がストリーム名に含まれているか、または独立していることを確認
                 for stream in streams:
                     # ログストリームが適切なロググループに属していることを確認
-                    assert (
-                        tool_name in stream["log_group"]
-                    ), f"Stream {stream['stream_name']} should belong to {tool_name} log group"
+                    assert tool_name in stream["log_group"], (
+                        f"Stream {stream['stream_name']} should belong to {tool_name} log group"
+                    )
 
             # ストリーム名の重複がないことを確認（完全な分離）
             unique_streams = set(all_stream_names)
-            assert len(unique_streams) == len(
-                all_stream_names
-            ), "Log streams should be unique across different CI/CD tools"
+            assert len(unique_streams) == len(all_stream_names), (
+                "Log streams should be unique across different CI/CD tools"
+            )
 
         except Exception as e:
             pytest.skip(f"Could not access log streams: {e}")
@@ -224,15 +224,15 @@ class TestCloudWatchLogSeparation:
             for tool_name, entries in tool_log_entries.items():
                 for entry in entries:
                     # ログエントリが適切なロググループに属していることを確認
-                    assert (
-                        tool_name in entry["log_group"]
-                    ), f"Log entry should be in {tool_name} log group, but found in {entry['log_group']}"
+                    assert tool_name in entry["log_group"], (
+                        f"Log entry should be in {tool_name} log group, but found in {entry['log_group']}"
+                    )
 
                     # タイムスタンプが期待される範囲内であることを確認
                     entry_time = datetime.fromtimestamp(entry["timestamp"] / 1000, UTC)
-                    assert (
-                        start_time <= entry_time <= end_time
-                    ), f"Log entry timestamp {entry_time} is outside expected range"
+                    assert start_time <= entry_time <= end_time, (
+                        f"Log entry timestamp {entry_time} is outside expected range"
+                    )
 
         except Exception as e:
             pytest.skip(f"Could not access recent log entries: {e}")

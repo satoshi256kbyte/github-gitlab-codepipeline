@@ -80,18 +80,18 @@ class TestCICDToolIsolation:
 
         # 全てのエンドポイントが正常に応答することを確認
         for result in results:
-            assert result[
-                "success"
-            ], f"{result['tool']} endpoint failed: {result.get('error', 'Unknown error')}"
+            assert result["success"], (
+                f"{result['tool']} endpoint failed: {result.get('error', 'Unknown error')}"
+            )
             assert result["status_code"] == 200
             assert result["response_time"] is not None
 
         # レスポンス時間が極端に遅くないことを確認（相互干渉がないことの間接的確認）
         response_times = [r["response_time"] for r in results if r["response_time"]]
         avg_response_time = sum(response_times) / len(response_times)
-        assert (
-            avg_response_time < 5.0
-        ), f"Average response time too slow: {avg_response_time}s"
+        assert avg_response_time < 5.0, (
+            f"Average response time too slow: {avg_response_time}s"
+        )
 
     @pytest.mark.skipif(
         True,  # 常にスキップ（ローカル環境判定は実行時に行う）
@@ -185,15 +185,15 @@ class TestCICDToolIsolation:
 
         # 全ての操作が成功することを確認
         for result in results:
-            assert result[
-                "success"
-            ], f"{result['tool']} CRUD operations failed: {result.get('error', 'Unknown error')}"
+            assert result["success"], (
+                f"{result['tool']} CRUD operations failed: {result.get('error', 'Unknown error')}"
+            )
 
         # 各ツールで作成されたアイテムIDが異なることを確認（データ独立性）
         item_ids = [r["item_id"] for r in results if r.get("item_id")]
-        assert len(set(item_ids)) == len(
-            item_ids
-        ), "Item IDs should be unique across different CI/CD tools"
+        assert len(set(item_ids)) == len(item_ids), (
+            "Item IDs should be unique across different CI/CD tools"
+        )
 
     @pytest.mark.skipif(
         True,  # 常にスキップ（ローカル環境判定は実行時に行う）
@@ -223,12 +223,12 @@ class TestCICDToolIsolation:
                     continue
 
         # 各ツールが異なるポートを使用していることを確認
-        assert len(ports) == len(
-            self.endpoints
-        ), f"Each CI/CD tool should use a different port. Found ports: {ports}"
+        assert len(ports) == len(self.endpoints), (
+            f"Each CI/CD tool should use a different port. Found ports: {ports}"
+        )
 
         # 期待されるポート範囲内であることを確認
         expected_ports = {8080, 8081, 8082}
-        assert (
-            ports == expected_ports
-        ), f"Ports should be {expected_ports}, but found {ports}"
+        assert ports == expected_ports, (
+            f"Ports should be {expected_ports}, but found {ports}"
+        )

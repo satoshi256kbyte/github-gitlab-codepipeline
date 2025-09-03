@@ -45,7 +45,7 @@ cat > ec2-deployment.json << EOF
 {
     "applicationName": "$APPLICATION_NAME_EC2",
     "deploymentGroupName": "$DEPLOYMENT_GROUP_EC2",
-    "deploymentConfigName": "CodeDeployDefault.EC2AllAtOnceBlueGreen",
+    "deploymentConfigName": "CodeDeployDefault.AllAtOnce",
     "revision": {
         "revisionType": "S3",
         "s3Location": {

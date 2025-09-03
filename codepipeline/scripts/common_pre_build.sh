@@ -35,6 +35,6 @@ if [ "$SKIP_PYTHON" = false ]; then
     uv sync
   fi
 fi
-npm ci
+npm install
 
 echo "=== Common Pre-Build Phase Completed ==="

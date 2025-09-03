@@ -22,8 +22,8 @@ env:
 
 jobs:
   # キャッシュ作成ジョブ
-  cache:
-    name: Create Cache
+  prepare:
+    name: Prepare
     runs-on: ubuntu-latest
     outputs:
       cache-key: ${{ steps.cache-key.outputs.key }}
@@ -70,7 +70,7 @@ jobs:
 
   # 静的解析ジョブ
   lint:
-    name: Static Analysis
+    name: Lint
     runs-on: ubuntu-latest
     needs: cache
     steps:
@@ -150,7 +150,7 @@ jobs:
 
   # SCAチェックジョブ（Dependabot + CodeGuru Security）
   sca:
-    name: SCA Security Check (Dependabot + CodeGuru)
+    name: SCA (Dependabot + CodeGuru)
     runs-on: ubuntu-latest
     needs: cache
     steps:
@@ -219,7 +219,7 @@ jobs:
 
   # SASTチェックジョブ（CodeQL + CodeGuru Security）
   sast:
-    name: SAST Security Check (CodeQL + CodeGuru)
+    name: SAST (CodeQL + CodeGuru)
     runs-on: ubuntu-latest
     needs: cache
     steps:

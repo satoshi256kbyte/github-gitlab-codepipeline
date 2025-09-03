@@ -33,10 +33,10 @@ def clean_items_storage() -> Generator[None]:
     original_storage = items_storage.copy()
 
     # next_idをリセット
-    import modules.api.routers.items as items_module
+    from ..routers import items
 
-    original_next_id = items_module.next_id
-    items_module.next_id = 1
+    original_next_id = items.next_id
+    items.next_id = 1
 
     # ストレージをクリア
     items_storage.clear()
@@ -47,7 +47,7 @@ def clean_items_storage() -> Generator[None]:
     # テスト後に元の状態に復元
     items_storage.clear()
     items_storage.update(original_storage)
-    items_module.next_id = original_next_id
+    items.next_id = original_next_id
 
 
 @pytest.fixture
@@ -102,6 +102,7 @@ def reset_items_storage():
     # テスト開始前にリセット
     items_storage.clear()
     import modules.api.routers.items as items_module
+
     items_module.next_id = 1
 
     yield

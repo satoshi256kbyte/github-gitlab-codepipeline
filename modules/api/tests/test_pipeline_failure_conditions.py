@@ -160,12 +160,12 @@ def execute_command(cmd):
             pytest.skip(f"Unknown tool: {tool}")
 
         # パイプラインが適切に失敗したことを確認
-        assert not result[
-            "success"
-        ], f"{tool} パイプラインが {failure_type} エラーで失敗しませんでした"
-        assert failure_type in result.get(
-            "failure_stage", ""
-        ), f"{tool} パイプラインが期待されたステージ（{failure_type}）で失敗しませんでした"
+        assert not result["success"], (
+            f"{tool} パイプラインが {failure_type} エラーで失敗しませんでした"
+        )
+        assert failure_type in result.get("failure_stage", ""), (
+            f"{tool} パイプラインが期待されたステージ（{failure_type}）で失敗しませんでした"
+        )
 
         print(f"{tool.upper()} パイプラインが {failure_type} で適切に失敗しました")
 
@@ -332,9 +332,9 @@ class TestPipelineFailureRecovery:
             notification_config = self._check_notification_config(tool)
 
             # 通知が適切に設定されていることを確認
-            assert notification_config[
-                "configured"
-            ], f"{tool} の失敗通知が設定されていません"
+            assert notification_config["configured"], (
+                f"{tool} の失敗通知が設定されていません"
+            )
 
             print(f"{tool.upper()} 失敗通知設定: OK")
 
@@ -379,9 +379,9 @@ class TestPipelineFailureRecovery:
                 rollback_config = self._check_rollback_config(tool, target)
 
                 # ロールバック機能が適切に設定されていることを確認
-                assert rollback_config[
-                    "available"
-                ], f"{tool} {target} のロールバック機能が利用できません"
+                assert rollback_config["available"], (
+                    f"{tool} {target} のロールバック機能が利用できません"
+                )
 
                 print(f"{tool.upper()} {target.upper()} ロールバック設定: OK")
 
@@ -443,9 +443,9 @@ class TestPipelinePerformanceUnderFailure:
                 }
 
                 # 失敗が適切に検出されることを確認
-                assert detection_result[
-                    "detected"
-                ], f"{tool} {failure_type} 失敗が検出されませんでした"
+                assert detection_result["detected"], (
+                    f"{tool} {failure_type} 失敗が検出されませんでした"
+                )
 
                 print(
                     f"{tool.upper()} {failure_type} 失敗検出時間: {detection_time:.2f}秒"

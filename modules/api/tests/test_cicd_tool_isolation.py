@@ -62,18 +62,18 @@ class TestCICDToolIsolation:
 
         # 全てのエンドポイントが正常に応答することを確認
         for result in results:
-            assert result[
-                "success"
-            ], f"{result['tool']} endpoint failed: {result.get('error', 'Unknown error')}"
+            assert result["success"], (
+                f"{result['tool']} endpoint failed: {result.get('error', 'Unknown error')}"
+            )
             assert result["status_code"] == 200
             assert result["response_time"] is not None
 
         # レスポンス時間が極端に遅くないことを確認（相互干渉がないことの間接的確認）
         response_times = [r["response_time"] for r in results if r["response_time"]]
         avg_response_time = sum(response_times) / len(response_times)
-        assert (
-            avg_response_time < 5.0
-        ), f"Average response time too slow: {avg_response_time}s"
+        assert avg_response_time < 5.0, (
+            f"Average response time too slow: {avg_response_time}s"
+        )
 
     @pytest.mark.skipif(
         os.getenv("ENVIRONMENT") == "local" or os.getenv("STAGE_NAME") == "local",
@@ -147,21 +147,21 @@ class TestCICDToolIsolation:
 
         # 全ての操作が成功することを確認
         for result in results:
-            assert result[
-                "success"
-            ], f"{result['tool']} CRUD operations failed: {result.get('error', 'Unknown error')}"
+            assert result["success"], (
+                f"{result['tool']} CRUD operations failed: {result.get('error', 'Unknown error')}"
+            )
 
         # 各ツールで作成されたアイテムが正しく分離されていることを確認
         item_names = [r["item_name"] for r in results if r["success"]]
-        assert len(set(item_names)) == len(
-            item_names
-        ), "Item names should be unique across tools"
+        assert len(set(item_names)) == len(item_names), (
+            "Item names should be unique across tools"
+        )
 
         for result in results:
             expected_name = f"{result['tool']}_test_item"
-            assert (
-                result["item_name"] == expected_name
-            ), f"Item name mismatch for {result['tool']}"
+            assert result["item_name"] == expected_name, (
+                f"Item name mismatch for {result['tool']}"
+            )
 
     @pytest.mark.asyncio
     async def test_load_balancer_port_isolation(self):

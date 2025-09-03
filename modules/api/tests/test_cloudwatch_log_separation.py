@@ -234,9 +234,9 @@ class TestCloudWatchLogSeparation:
                             for message in sample_messages:
                                 # ログメッセージが適切なツールのものであることを間接的に確認
                                 # （実際のログ内容は実装依存）
-                                assert isinstance(
-                                    message, str
-                                ), "Log message should be string"
+                                assert isinstance(message, str), (
+                                    "Log message should be string"
+                                )
 
                     except self.cloudwatch_logs.exceptions.ResourceNotFoundException:
                         print(f"⚠ Log group not found: {log_group_name}")

@@ -43,7 +43,6 @@ jobs:
       - name: Install tools via asdf
         run: |
           asdf plugin add python
-          asdf plugin add nodejs
           asdf install
 
       - name: Setup uv
@@ -97,7 +96,6 @@ jobs:
       - name: Install tools via asdf
         run: |
           asdf plugin add python
-          asdf plugin add nodejs
           asdf install
 
       - name: Setup uv
@@ -141,7 +139,6 @@ jobs:
       - name: Install tools via asdf
         run: |
           asdf plugin add python
-          asdf plugin add nodejs
           asdf install
 
       - name: Setup uv
@@ -212,8 +209,6 @@ jobs:
       - name: Install tools via asdf
         run: |
           asdf plugin add python
-          asdf plugin add nodejs
-          asdf install
 
       - name: Setup uv
         run: |
@@ -272,7 +267,6 @@ jobs:
       - name: Install tools via asdf
         run: |
           asdf plugin add python
-          asdf plugin add nodejs
           asdf install
 
       - name: Setup uv
@@ -292,7 +286,7 @@ jobs:
 
       - name: Build SAM application
         run: |
-          sam build --template-file template-github.yaml --use-container
+          sam build --template-file template-github.yaml
 
       - name: Deploy to Lambda
         run: |

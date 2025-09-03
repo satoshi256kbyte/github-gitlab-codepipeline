@@ -20,7 +20,7 @@ done
 
 # システム依存関係のインストール
 echo "Installing system dependencies..."
-apt-get update
+# apt-get update
 apt-get install -y curl libbz2-dev libreadline-dev liblzma-dev zlib1g-dev libffi-dev libssl-dev unzip
 
 # asdfのインストール（キャッシュを活用、整合性チェック付き）
@@ -39,7 +39,6 @@ export ASDF_DIR="$HOME/.asdf"
 # プラグインの追加
 echo "Adding asdf plugins..."
 asdf plugin add python || true
-asdf plugin add nodejs || true
 asdf plugin add aws-sam-cli || true
 
 # 必要なツールのインストール
@@ -55,18 +54,6 @@ if [ "$SKIP_PYTHON" = false ]; then
   fi
 else
   echo "Skipping uv installation as Python is not needed"
-fi
-
-# rainのインストール
-echo "Installing rain..."
-if ! command -v rain &> /dev/null; then
-  RAIN_VERSION="1.20.0"
-  mkdir -p "$HOME/.local/bin"
-  curl -L "https://github.com/aws-cloudformation/rain/releases/download/v${RAIN_VERSION}/rain-v${RAIN_VERSION}_linux-amd64.zip" -o rain.zip
-  unzip rain.zip
-  cp rain-v${RAIN_VERSION}_linux-amd64/rain "$HOME/.local/bin/rain"
-  chmod +x "$HOME/.local/bin/rain"
-  rm -rf rain.zip rain-v${RAIN_VERSION}_linux-amd64/
 fi
 
 echo "=== Common Install Phase Completed ==="

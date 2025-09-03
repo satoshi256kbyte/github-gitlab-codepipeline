@@ -30,7 +30,6 @@ export PATH="$HOME/.asdf/bin:$PATH"
 # プラグインの追加
 echo "Adding asdf plugins..."
 asdf plugin add python
-asdf plugin add nodejs
 
 # バージョンのインストール
 echo "Installing runtime versions..."

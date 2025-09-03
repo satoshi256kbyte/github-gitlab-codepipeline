@@ -130,13 +130,6 @@ cache:
     - export PATH="$HOME/.cargo/bin:$PATH"
     - uv --version
 
-# Node.js環境設定
-.nodejs_setup: &nodejs_setup
-  before_script:
-    - !reference [.python_setup, before_script]
-    - echo "Setting up Node.js environment..."
-    - npm install
-
 # Docker環境設定
 .docker_setup: &docker_setup
   services:
@@ -178,7 +171,6 @@ cache_dependencies:
     - echo "Installing Python dependencies..."
     - cd modules/api && uv sync --dev && cd ../..
     - echo "Installing CDK dependencies..."
-    - cd cdk && npm install && cd ..
     - echo "Exporting requirements for security scanning..."
     - cd modules/api && uv export --all-packages --no-dev --frozen --no-editable -o requirements.txt --no-emit-workspace --no-hashes --no-header && cd ../..
     - echo "Cache creation completed"

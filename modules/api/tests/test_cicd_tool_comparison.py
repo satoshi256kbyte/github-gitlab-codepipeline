@@ -94,17 +94,17 @@ class TestCICDToolEndpointComparison:
                 response = self._make_request(health_url)
 
                 if response is not None:
-                    assert response.status_code == 200, (
-                        f"{tool_config['name']} {target} ヘルスチェックが失敗しました"
-                    )
+                    assert (
+                        response.status_code == 200
+                    ), f"{tool_config['name']} {target} ヘルスチェックが失敗しました"
 
                     health_data = response.json()
-                    assert health_data["status"] == "healthy", (
-                        f"{tool_config['name']} {target} のステータスが正常ではありません"
-                    )
-                    assert "timestamp" in health_data, (
-                        f"{tool_config['name']} {target} のレスポンスにタイムスタンプがありません"
-                    )
+                    assert (
+                        health_data["status"] == "healthy"
+                    ), f"{tool_config['name']} {target} のステータスが正常ではありません"
+                    assert (
+                        "timestamp" in health_data
+                    ), f"{tool_config['name']} {target} のレスポンスにタイムスタンプがありません"
                 else:
                     pytest.skip(
                         f"{tool_config['name']} {target} エンドポイントにアクセスできません（デプロイされていない可能性があります）"
@@ -125,20 +125,20 @@ class TestCICDToolEndpointComparison:
                 response = self._make_request(version_url)
 
                 if response is not None:
-                    assert response.status_code == 200, (
-                        f"{tool_config['name']} {target} バージョン情報取得が失敗しました"
-                    )
+                    assert (
+                        response.status_code == 200
+                    ), f"{tool_config['name']} {target} バージョン情報取得が失敗しました"
 
                     version_data = response.json()
-                    assert "version" in version_data, (
-                        f"{tool_config['name']} {target} のレスポンスにバージョン情報がありません"
-                    )
-                    assert version_data["version"] == "1.0.0", (
-                        f"{tool_config['name']} {target} のバージョンが期待値と異なります"
-                    )
-                    assert "build_time" in version_data, (
-                        f"{tool_config['name']} {target} のレスポンスにビルド時間がありません"
-                    )
+                    assert (
+                        "version" in version_data
+                    ), f"{tool_config['name']} {target} のレスポンスにバージョン情報がありません"
+                    assert (
+                        version_data["version"] == "1.0.0"
+                    ), f"{tool_config['name']} {target} のバージョンが期待値と異なります"
+                    assert (
+                        "build_time" in version_data
+                    ), f"{tool_config['name']} {target} のレスポンスにビルド時間がありません"
                 else:
                     pytest.skip(
                         f"{tool_config['name']} {target} エンドポイントにアクセスできません（デプロイされていない可能性があります）"
@@ -165,9 +165,9 @@ class TestCICDToolEndpointComparison:
                     )
                     continue
 
-                assert list_response.status_code == 200, (
-                    f"{tool_config['name']} {target} アイテム一覧取得が失敗しました"
-                )
+                assert (
+                    list_response.status_code == 200
+                ), f"{tool_config['name']} {target} アイテム一覧取得が失敗しました"
 
                 initial_data = list_response.json()
                 initial_count = initial_data["total"]
@@ -181,26 +181,26 @@ class TestCICDToolEndpointComparison:
                 create_response = self._make_request(
                     f"{base_url}/api/items", "POST", test_item
                 )
-                assert create_response.status_code == 201, (
-                    f"{tool_config['name']} {target} アイテム作成が失敗しました"
-                )
+                assert (
+                    create_response.status_code == 201
+                ), f"{tool_config['name']} {target} アイテム作成が失敗しました"
 
                 created_item = create_response.json()
                 item_id = created_item["id"]
 
                 # 3. 作成されたアイテムの個別取得
                 get_response = self._make_request(f"{base_url}/api/items/{item_id}")
-                assert get_response.status_code == 200, (
-                    f"{tool_config['name']} {target} アイテム個別取得が失敗しました"
-                )
+                assert (
+                    get_response.status_code == 200
+                ), f"{tool_config['name']} {target} アイテム個別取得が失敗しました"
 
                 retrieved_item = get_response.json()
-                assert retrieved_item["name"] == test_item["name"], (
-                    f"{tool_config['name']} {target} 取得したアイテム名が一致しません"
-                )
-                assert retrieved_item["description"] == test_item["description"], (
-                    f"{tool_config['name']} {target} 取得したアイテム説明が一致しません"
-                )
+                assert (
+                    retrieved_item["name"] == test_item["name"]
+                ), f"{tool_config['name']} {target} 取得したアイテム名が一致しません"
+                assert (
+                    retrieved_item["description"] == test_item["description"]
+                ), f"{tool_config['name']} {target} 取得したアイテム説明が一致しません"
 
                 # 4. アイテム更新
                 update_data = {
@@ -211,41 +211,41 @@ class TestCICDToolEndpointComparison:
                 update_response = self._make_request(
                     f"{base_url}/api/items/{item_id}", "PUT", update_data
                 )
-                assert update_response.status_code == 200, (
-                    f"{tool_config['name']} {target} アイテム更新が失敗しました"
-                )
+                assert (
+                    update_response.status_code == 200
+                ), f"{tool_config['name']} {target} アイテム更新が失敗しました"
 
                 updated_item = update_response.json()
-                assert updated_item["name"] == update_data["name"], (
-                    f"{tool_config['name']} {target} 更新されたアイテム名が一致しません"
-                )
+                assert (
+                    updated_item["name"] == update_data["name"]
+                ), f"{tool_config['name']} {target} 更新されたアイテム名が一致しません"
 
                 # 5. アイテム削除
                 delete_response = self._make_request(
                     f"{base_url}/api/items/{item_id}", "DELETE"
                 )
-                assert delete_response.status_code == 204, (
-                    f"{tool_config['name']} {target} アイテム削除が失敗しました"
-                )
+                assert (
+                    delete_response.status_code == 204
+                ), f"{tool_config['name']} {target} アイテム削除が失敗しました"
 
                 # 6. 削除確認
                 get_deleted_response = self._make_request(
                     f"{base_url}/api/items/{item_id}"
                 )
-                assert get_deleted_response.status_code == 404, (
-                    f"{tool_config['name']} {target} 削除されたアイテムが取得できてしまいました"
-                )
+                assert (
+                    get_deleted_response.status_code == 404
+                ), f"{tool_config['name']} {target} 削除されたアイテムが取得できてしまいました"
 
                 # 7. 最終的なアイテム数確認
                 final_list_response = self._make_request(f"{base_url}/api/items")
-                assert final_list_response.status_code == 200, (
-                    f"{tool_config['name']} {target} 最終アイテム一覧取得が失敗しました"
-                )
+                assert (
+                    final_list_response.status_code == 200
+                ), f"{tool_config['name']} {target} 最終アイテム一覧取得が失敗しました"
 
                 final_data = final_list_response.json()
-                assert final_data["total"] == initial_count, (
-                    f"{tool_config['name']} {target} 最終的なアイテム数が初期状態と一致しません"
-                )
+                assert (
+                    final_data["total"] == initial_count
+                ), f"{tool_config['name']} {target} 最終的なアイテム数が初期状態と一致しません"
 
     @pytest.mark.integration
     def test_cross_tool_isolation(self, endpoint_configs):
@@ -289,9 +289,7 @@ class TestCICDToolEndpointComparison:
                         assert get_response.status_code == 404 or (
                             get_response.status_code == 200
                             and get_response.json()["name"] != item_info["item"]["name"]
-                        ), (
-                            f"{tool_name}で作成したアイテムが{other_tool_name}から見えてしまいました"
-                        )
+                        ), f"{tool_name}で作成したアイテムが{other_tool_name}から見えてしまいました"
 
         # クリーンアップ
         for _tool_name, item_info in created_items.items():
@@ -326,14 +324,12 @@ class TestCICDToolEndpointComparison:
 
             for tool_name, format_info in response_formats.items():
                 if tool_name != first_tool:
-                    assert format_info["health_keys"] == first_format["health_keys"], (
-                        f"{tool_name}と{first_tool}でヘルスチェックレスポンス形式が異なります"
-                    )
+                    assert (
+                        format_info["health_keys"] == first_format["health_keys"]
+                    ), f"{tool_name}と{first_tool}でヘルスチェックレスポンス形式が異なります"
                     assert (
                         format_info["health_status"] == first_format["health_status"]
-                    ), (
-                        f"{tool_name}と{first_tool}でヘルスチェックステータスが異なります"
-                    )
+                    ), f"{tool_name}と{first_tool}でヘルスチェックステータスが異なります"
 
 
 class TestCICDToolPerformanceComparison:
@@ -366,12 +362,12 @@ class TestCICDToolPerformanceComparison:
             )
 
             # 基本的な応答性チェック（30秒以内）
-            assert response_time < 30.0, (
-                f"{tool_config['name']}のレスポンス時間が30秒を超えました"
-            )
-            assert response.status_code == 200, (
-                f"{tool_config['name']}のヘルスチェックが失敗しました"
-            )
+            assert (
+                response_time < 30.0
+            ), f"{tool_config['name']}のレスポンス時間が30秒を超えました"
+            assert (
+                response.status_code == 200
+            ), f"{tool_config['name']}のヘルスチェックが失敗しました"
 
         except requests.exceptions.RequestException:
             pytest.skip(

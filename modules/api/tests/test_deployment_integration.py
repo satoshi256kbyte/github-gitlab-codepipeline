@@ -412,9 +412,9 @@ class TestCrossDeploymentConsistency:
 
         # 全てのデプロイ先で同じバージョンが返されることを確認
         unique_versions = set(versions.values())
-        assert len(unique_versions) == 1, (
-            f"デプロイ先間でバージョンが一致しません: {versions}"
-        )
+        assert (
+            len(unique_versions) == 1
+        ), f"デプロイ先間でバージョンが一致しません: {versions}"
 
     @pytest.mark.deployment
     def test_all_deployments_api_consistency(self):
@@ -445,9 +445,7 @@ class TestCrossDeploymentConsistency:
                     assert response.status_code in [
                         200,
                         404,
-                    ], (
-                        f"{deployment_name}の{api_endpoint}が予期しないステータスコードを返しました: {response.status_code}"
-                    )
+                    ], f"{deployment_name}の{api_endpoint}が予期しないステータスコードを返しました: {response.status_code}"
 
                 except requests.exceptions.RequestException as e:
                     pytest.fail(

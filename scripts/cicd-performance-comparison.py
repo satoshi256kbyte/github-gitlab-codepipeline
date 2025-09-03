@@ -76,9 +76,9 @@ class CICDPerformanceAnalyzer:
                 "end_time": end_time.isoformat(),
                 "total_duration_seconds": total_duration,
                 "execution_details": execution_result,
-                "status": "success"
-                if execution_result.get("success", False)
-                else "failed",
+                "status": (
+                    "success" if execution_result.get("success", False) else "failed"
+                ),
             }
 
             print(f"{self.endpoints[tool]['name']} 実行時間: {total_duration:.2f}秒")

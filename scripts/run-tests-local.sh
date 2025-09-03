@@ -27,8 +27,8 @@ echo ""
 
 # Run tests with the specified arguments or default to all tests
 if [ $# -eq 0 ]; then
-    echo -e "${YELLOW}Running all tests...${NC}"
-    uv run pytest modules/api/tests/ -v --tb=short
+    echo -e "${YELLOW}Running all tests with coverage and JUnit XML...${NC}"
+    uv run pytest modules/api/tests/ -v --tb=short --cov=modules/api --cov-report=xml --cov-report=html --junit-xml=test-results.xml
 else
     echo -e "${YELLOW}Running tests with arguments: $@${NC}"
     uv run pytest "$@"
@@ -37,6 +37,15 @@ fi
 # Check exit status
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✅ All tests passed!${NC}"
+    if [ -f "test-results.xml" ]; then
+        echo -e "${GREEN}📊 JUnit XML report: test-results.xml${NC}"
+    fi
+    if [ -f "coverage.xml" ]; then
+        echo -e "${GREEN}📈 Coverage XML report: coverage.xml${NC}"
+    fi
+    if [ -d "htmlcov" ]; then
+        echo -e "${GREEN}🌐 HTML coverage report: htmlcov/index.html${NC}"
+    fi
 else
     echo -e "${RED}❌ Some tests failed!${NC}"
     exit 1

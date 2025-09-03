@@ -13,7 +13,7 @@ phases:
     commands:
       - . cicd/scripts/common_env.sh
       - echo "Running unit tests..."
-      - uv run pytest modules/api/tests/ -v --cov=modules/api --cov-report=xml
+      - uv run pytest modules/api/tests/ -v --cov=modules/api --cov-report=xml --cov-report=html --junit-xml=test-results.xml
 
   post_build:
     commands:
@@ -22,10 +22,15 @@ phases:
 reports:
   unit-test-reports:
     files:
-      - '**/htmlcov/index.html'
-      - '**/coverage.xml'
+      - 'test-results.xml'
     base-directory: '.'
     file-format: 'JUNITXML'
+  
+  coverage-reports:
+    files:
+      - 'coverage.xml'
+      - 'htmlcov/index.html'
+    base-directory: '.'
 
 cache:
   key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$$(codebuild-hash-files uv.lock)

@@ -37,9 +37,12 @@ variables:
   IMAGE_REPO_NAME: "${CICD_TOOL}-${STAGE_NAME}-ecr-api"
   APPLICATION_NAME: "${CICD_TOOL}-${STAGE_NAME}-codedeploy-ecs"
   DEPLOYMENT_GROUP: "${CICD_TOOL}-${STAGE_NAME}-deployment-group-ecs"
-  APPLICATION_NAME_EC2: "${CICD_TOOL}-${STAGE_NAME}-codedeploy_ec2"
-  DEPLOYMENT_GROUP_EC2: "${CICD_TOOL}-${STAGE_NAME}-deployment-group-ec2"
-  S3_BUCKET: "${CICD_TOOL}-${STAGE_NAME}-s3-codedeploy"
+  APPLICATION_NAME_EC2: "gitlab-local-codedeploy-app"
+  DEPLOYMENT_GROUP_EC2: "gitlab-local-codedeploy-dg"
+  before_script:
+    - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+    - export S3_BUCKET="comparison-local-${ACCOUNT_ID}-artifact-bucket"
+  script:
   ALB_NAME_ECS: "${CICD_TOOL}-${STAGE_NAME}-alb-ecs"
   ALB_NAME_EC2: "${CICD_TOOL}-${STAGE_NAME}-alb-ec2"
   SAM_STACK_NAME: "${CICD_TOOL}-${STAGE_NAME}-sam-stack"

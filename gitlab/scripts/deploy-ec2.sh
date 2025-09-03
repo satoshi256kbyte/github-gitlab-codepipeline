@@ -10,9 +10,10 @@ STAGE_NAME=${STAGE_NAME:-"local"}
 CICD_TOOL=${CICD_TOOL:-"gitlab"}
 AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-"ap-northeast-1"}
 CI_COMMIT_SHA=${CI_COMMIT_SHA}
-APPLICATION_NAME_EC2="${CICD_TOOL}-${STAGE_NAME}-codedeploy_ec2"
-DEPLOYMENT_GROUP_EC2="${CICD_TOOL}-${STAGE_NAME}-deployment-group-ec2"
-S3_BUCKET="${CICD_TOOL}-${STAGE_NAME}-s3-codedeploy"
+APPLICATION_NAME_EC2="gitlab-local-codedeploy-app"
+DEPLOYMENT_GROUP_EC2="gitlab-local-codedeploy-dg"
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+S3_BUCKET="comparison-local-${ACCOUNT_ID}-artifact-bucket"
 ALB_NAME_EC2="${CICD_TOOL}-${STAGE_NAME}-alb-ec2"
 DEPLOYMENT_TIMEOUT=${DEPLOYMENT_TIMEOUT:-1800}
 

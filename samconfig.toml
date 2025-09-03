@@ -13,7 +13,7 @@ parallel = true
 lint = true
 
 [github.deploy.parameters]
-capabilities = "CAPABILITY_IAM"
+capabilities = "CAPABILITY_NAMED_IAM"
 confirm_changeset = false
 resolve_s3 = true
 s3_prefix = "github-local-lambda"
@@ -37,7 +37,7 @@ parallel = true
 lint = true
 
 [gitlab.deploy.parameters]
-capabilities = "CAPABILITY_IAM"
+capabilities = "CAPABILITY_NAMED_IAM"
 confirm_changeset = false
 resolve_s3 = true
 s3_prefix = "gitlab-local-lambda"
@@ -61,7 +61,7 @@ parallel = true
 lint = true
 
 [codepipeline.deploy.parameters]
-capabilities = "CAPABILITY_IAM"
+capabilities = "CAPABILITY_NAMED_IAM"
 confirm_changeset = false
 resolve_s3 = true
 s3_prefix = "codepipeline-local-lambda"
@@ -85,7 +85,7 @@ parallel = true
 lint = true
 
 [default.deploy.parameters]
-capabilities = "CAPABILITY_IAM"
+capabilities = "CAPABILITY_NAMED_IAM"
 confirm_changeset = false
 resolve_s3 = true
 s3_prefix = "cicd-comparison-lambda"

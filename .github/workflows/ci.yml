@@ -10,7 +10,7 @@ on:
 env:
   AWS_REGION: ap-northeast-1
   SERVICE_NAME: cicd-comparison
-  STAGE_NAME: production
+  STAGE_NAME: local
   CICD_TOOL: github
   PYTHON_VERSION: "3.13"
 
@@ -292,18 +292,7 @@ jobs:
         run: |
           sam deploy --template-file template-github.yaml \
             --no-confirm-changeset --no-fail-on-empty-changeset \
-            --stack-name ${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-lambda \
-            --capabilities CAPABILITY_IAM \
-            --region ${{ env.AWS_REGION }} \
-            --parameter-overrides \
-              Environment=${{ env.STAGE_NAME }} \
-              ServiceName=${{ env.SERVICE_NAME }} \
-              CicdTool=${{ env.CICD_TOOL }}
-          API_URL=$(create_api_gateway_for_lambda \
-            "${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-api" \
-            "${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-lambda-api")
-
-          echo "✅ Lambda deployed to LocalStack: $API_URL"
+            --config-env github
 
   # EC2 CodeDeployデプロイジョブ
   deploy_ec2:

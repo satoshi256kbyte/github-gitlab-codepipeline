@@ -16,13 +16,8 @@ phases:
       - sam build --template-file template-codepipeline.yaml
       - sam deploy --template-file template-codepipeline.yaml \
           --no-confirm-changeset --no-fail-on-empty-changeset \
-          --stack-name codepipeline-cicd-comparison-local-lambda \
-          --capabilities CAPABILITY_IAM \
-          --region ap-northeast-1 \
-          --parameter-overrides \
-            Environment=local \
-            ServiceName=codepipeline-cicd-comparison \
-            CicdTool=codepipeline
+          --config-env codepipeline
+
   post_build:
     commands:
       - echo "SAM deployment completed successfully"

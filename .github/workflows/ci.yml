@@ -95,7 +95,10 @@ jobs:
         uses: asdf-vm/actions/setup@v3
 
       - name: Install tools via asdf
-        run: asdf install
+        run: |
+          asdf plugin add python
+          asdf plugin add nodejs
+          asdf install
 
       - name: Setup uv
         run: |
@@ -136,7 +139,10 @@ jobs:
         uses: asdf-vm/actions/setup@v3
 
       - name: Install tools via asdf
-        run: asdf install
+        run: |
+          asdf plugin add python
+          asdf plugin add nodejs
+          asdf install
 
       - name: Setup uv
         run: |
@@ -183,7 +189,10 @@ jobs:
         uses: asdf-vm/actions/setup@v3
 
       - name: Install tools via asdf
-        run: asdf install
+        run: |
+          asdf plugin add python
+          asdf plugin add nodejs
+          asdf install
 
       - name: Setup uv
         run: |
@@ -261,7 +270,10 @@ jobs:
         uses: asdf-vm/actions/setup@v3
 
       - name: Install tools via asdf
-        run: asdf install
+        run: |
+          asdf plugin add python
+          asdf plugin add nodejs
+          asdf install
 
       - name: Setup uv
         run: |
@@ -318,7 +330,10 @@ jobs:
         uses: asdf-vm/actions/setup@v3
 
       - name: Install tools via asdf
-        run: asdf install
+        run: |
+          asdf plugin add python
+          asdf plugin add nodejs
+          asdf install
 
       - name: Setup uv
         run: |

@@ -28,12 +28,10 @@ reports:
     file-format: 'JUNITXML'
 
 cache:
-  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$(codebuild-hash-files package-lock.json)-$(codebuild-hash-files uv.lock)
+  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$$(codebuild-hash-files uv.lock)
   paths:
     - '/root/.cache/pip/**/*'
     - '/root/.cache/uv/**/*'
     - '/root/.cargo/**/*'
-    - '/root/.npm/**/*'
     - '/root/.asdf/**/*'
     - '/root/.local/bin/**/*'
-    - 'node_modules/**/*'

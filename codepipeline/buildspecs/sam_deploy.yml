@@ -20,7 +20,7 @@ phases:
       - echo "SAM deployment completed successfully"
 
 cache:
-  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$(codebuild-hash-files package-lock.json)-$(codebuild-hash-files uv.lock)
+  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$$(codebuild-hash-files uv.lock)
   paths:
     - '/root/.cache/pip/**/*'
     - '/root/.cache/uv/**/*'
@@ -28,4 +28,3 @@ cache:
     - '/root/.asdf/**/*'
     - '/root/.local/bin/**/*'
     - '.aws-sam/**/*'
-    - 'node_modules/**/*'

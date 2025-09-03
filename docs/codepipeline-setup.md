@@ -425,7 +425,7 @@ artifacts:
     - '**/*'
 
 cache:
-  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$(codebuild-hash-files package-lock.json)-$(codebuild-hash-files uv.lock)
+  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$$(codebuild-hash-files uv.lock)
   paths:
     - '/root/.cache/pip/**/*'
     - '/root/.cache/uv/**/*'
@@ -471,7 +471,7 @@ reports:
     file-format: 'JUNITXML'
 
 cache:
-  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$(codebuild-hash-files package-lock.json)-$(codebuild-hash-files uv.lock)
+  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$$(codebuild-hash-files uv.lock)
   paths:
     - '/root/.cache/pip/**/*'
     - '/root/.cache/uv/**/*'
@@ -525,7 +525,7 @@ artifacts:
   name: coverage-report
 
 cache:
-  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$(codebuild-hash-files package-lock.json)-$(codebuild-hash-files uv.lock)
+  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$$(codebuild-hash-files uv.lock)
   paths:
     - '/root/.cache/pip/**/*'
     - '/root/.cache/uv/**/*'
@@ -587,7 +587,7 @@ artifacts:
   name: sca-report
 
 cache:
-  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$(codebuild-hash-files package-lock.json)-$(codebuild-hash-files uv.lock)
+  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$$(codebuild-hash-files uv.lock)
   paths:
     - '/root/.cache/pip/**/*'
     - '/root/.cache/uv/**/*'
@@ -649,7 +649,7 @@ artifacts:
   name: sast-report
 
 cache:
-  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$(codebuild-hash-files package-lock.json)-$(codebuild-hash-files uv.lock)
+  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$$(codebuild-hash-files uv.lock)
   paths:
     - '/root/.cache/pip/**/*'
     - '/root/.cache/uv/**/*'
@@ -694,7 +694,7 @@ phases:
       - aws cloudformation describe-stacks --stack-name cicd-comparison-lambda-${STAGE_NAME} --query 'Stacks[0].Outputs'
 
 cache:
-  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$(codebuild-hash-files package-lock.json)-$(codebuild-hash-files uv.lock)
+  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$$(codebuild-hash-files uv.lock)
   paths:
     - '/root/.cache/pip/**/*'
     - '/root/.cache/uv/**/*'
@@ -753,7 +753,7 @@ artifacts:
     - appspec.yml
 
 cache:
-  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$(codebuild-hash-files package-lock.json)-$(codebuild-hash-files uv.lock)
+  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$$(codebuild-hash-files uv.lock)
   paths:
     - '/root/.cache/pip/**/*'
     - '/root/.cache/uv/**/*'
@@ -801,7 +801,7 @@ phases:
       - echo "EC2 deployment initiated successfully"
 
 cache:
-  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$(codebuild-hash-files package-lock.json)-$(codebuild-hash-files uv.lock)
+  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$$(codebuild-hash-files uv.lock)
   paths:
     - '/root/.cache/pip/**/*'
     - '/root/.cache/uv/**/*'

@@ -7,17 +7,17 @@ phases:
 
   pre_build:
     commands:
-      - bash codepipeline/scripts/common_pre_build.sh --dev
+      - bash codepipeline/scripts/common_pre_build.sh
 
   build:
     commands:
       - . codepipeline/scripts/common_env.sh
-      - echo "Running static analysis..."
-      - npm run lint
+      - echo "Deploying SAM applications..."
+      - bash ./scripts/all_sam_build_deploy.sh --service-name $SERVICE_NAME --stage-name $STAGE_NAME --sam-bucket $SAM_S3_BUCKET
 
   post_build:
     commands:
-      - echo "Static analysis completed successfully"
+      - echo "SAM deployment completed successfully"
 
 cache:
   key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$(codebuild-hash-files package-lock.json)-$(codebuild-hash-files uv.lock)
@@ -25,7 +25,7 @@ cache:
     - '/root/.cache/pip/**/*'
     - '/root/.cache/uv/**/*'
     - '/root/.cargo/**/*'
-    - '/root/.npm/**/*'
     - '/root/.asdf/**/*'
     - '/root/.local/bin/**/*'
+    - '.aws-sam/**/*'
     - 'node_modules/**/*'

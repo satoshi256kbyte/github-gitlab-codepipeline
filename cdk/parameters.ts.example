@@ -1,5 +1,2 @@
 export const parameters = {
-  connectionArn: 'arn:aws:codeconnections:ap-northeast-1:ACCOUNT_ID:connection/CONNECTION_ID',
-  repositoryId: 'owner/repository-name',
-  branchName: 'main',
 };

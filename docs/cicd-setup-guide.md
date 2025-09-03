@@ -198,7 +198,6 @@ npx cdk deploy PipelineStack
 #### GitHub連携
 
 ```typescript
-// cdk/lib/pipeline-stack.ts
 const sourceOutput = new codepipeline.Artifact();
 const sourceAction = new codepipeline_actions.GitHubSourceAction({
   actionName: 'GitHub_Source',

@@ -1,0 +1,463 @@
+Description: Comparison CI/CD Pipeline Configuration
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Service Configuration
+        Parameters:
+          - ServiceName
+          - StageName
+      - Label:
+          default: Git Configuration
+        Parameters:
+          - ConnectionArn
+          - RepositoryId
+          - BranchName
+
+Parameters:
+  ServiceName:
+    Description: Name of the service
+    Type: String
+    Default: comparison
+
+  StageName:
+    Description: Deployment stage for environment separation
+    Type: String
+    AllowedValues:
+      - local
+      - dev
+      - stg
+      - prod
+    Default: local
+
+  ConnectionArn:
+    Description: GitHub connection ARN
+    Type: String
+    Default: 'arn:aws:codeconnections:ap-northeast-1:xxxxxxxxx:connection/xxxxxxxxx'
+
+  RepositoryId:
+    Description: GitHub repository ID
+    Type: String
+    Default: 'satoshi256kbyte/github-gitlab-codepipeline'
+
+  BranchName:
+    Description: GitHub branch name
+    Type: String
+    Default: 'main'
+
+Mappings:
+  CodeBuildImages:
+    Standard:
+      Image: aws/codebuild/standard:7.0
+      ComputeType: BUILD_GENERAL1_SMALL
+
+Conditions:
+  IsStgOrProd: !Or
+    - !Equals
+      - !Ref StageName
+      - stg
+    - !Equals
+      - !Ref StageName
+      - prod
+
+Resources:
+  BridgeBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${ServiceName}-${StageName}-${AWS::AccountId}-bridge-bucket
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      Tags:
+        - Key: Name
+          Value: !Sub ${ServiceName}-${StageName}-${AWS::AccountId}-bridge-bucket
+        - Key: ServiceName
+          Value: !Ref ServiceName
+        - Key: StageName
+          Value: !Ref StageName
+
+  PipelineArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${ServiceName}-${StageName}-${AWS::AccountId}-artifact-bucket
+      VersioningConfiguration:
+        Status: Suspended
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      Tags:
+        - Key: Name
+          Value: !Sub ${ServiceName}-${StageName}-${AWS::AccountId}-artifact-bucket
+        - Key: ServiceName
+          Value: !Ref ServiceName
+        - Key: StageName
+          Value: !Ref StageName
+
+  NoCacheCodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub ${ServiceName}-${StageName}-no-cache
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            install:
+              commands:
+                - echo "Default buildspec - should be overridden"
+            build:
+              commands:
+                - echo "This buildspec should be overridden by CodePipeline action"
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: !FindInMap
+          - CodeBuildImages
+          - Standard
+          - ComputeType
+        Image: !FindInMap
+          - CodeBuildImages
+          - Standard
+          - Image
+        Type: LINUX_CONTAINER
+        EnvironmentVariables:
+          - Name: SERVICE_NAME
+            Value: !Ref ServiceName
+          - Name: STAGE_NAME
+            Value: !Ref StageName
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Tags:
+        - Key: Name
+          Value: !Sub ${ServiceName}-${StageName}-no-cache
+        - Key: ServiceName
+          Value: !Ref ServiceName
+        - Key: StageName
+          Value: !Ref StageName
+
+  # Static Analysis CodeBuild Project (共通)
+  StaticAnalysisCodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub ${ServiceName}-${StageName}-static-analysis
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            install:
+              commands:
+                - echo "Default buildspec - should be overridden"
+            build:
+              commands:
+                - echo "This buildspec should be overridden by CodePipeline action"
+      Artifacts:
+        Type: CODEPIPELINE
+      Cache:
+        Type: S3
+        Location: !Sub "${BridgeBucket}/cache/static-analysis"
+      Environment:
+        ComputeType: !FindInMap
+          - CodeBuildImages
+          - Standard
+          - ComputeType
+        Image: !FindInMap
+          - CodeBuildImages
+          - Standard
+          - Image
+        Type: LINUX_CONTAINER
+        EnvironmentVariables:
+          - Name: SERVICE_NAME
+            Value: !Ref ServiceName
+          - Name: STAGE_NAME
+            Value: !Ref StageName
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Tags:
+        - Key: Name
+          Value: !Sub ${ServiceName}-${StageName}-static-analysis
+        - Key: ServiceName
+          Value: !Ref ServiceName
+        - Key: StageName
+          Value: !Ref StageName
+
+  # Build and Deploy CodeBuild Project (共通)
+  BuildAndDeployCodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Sub ${ServiceName}-${StageName}-build-and-deploy
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          phases:
+            install:
+              commands:
+                - echo "Default buildspec - should be overridden"
+            build:
+              commands:
+                - echo "This buildspec should be overridden by CodePipeline action"
+      Artifacts:
+        Type: CODEPIPELINE
+      Cache:
+        Type: S3
+        Location: !Sub "${BridgeBucket}/cache/build-and-deploy"
+      Environment:
+        ComputeType: !FindInMap
+          - CodeBuildImages
+          - Standard
+          - ComputeType
+        Image: !FindInMap
+          - CodeBuildImages
+          - Standard
+          - Image
+        Type: LINUX_CONTAINER
+        PrivilegedMode: true  # ECRプッシュに必要
+        EnvironmentVariables:
+          - Name: SERVICE_NAME
+            Value: !Ref ServiceName
+          - Name: STAGE_NAME
+            Value: !Ref StageName
+          - Name: SAM_S3_BUCKET
+            Value: !Ref PipelineArtifactBucket
+          - Name: SAM_S3_PREFIX
+            Value: !Sub ${ServiceName}-${StageName}
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Tags:
+        - Key: Name
+          Value: !Sub ${ServiceName}-${StageName}-build-and-deploy
+        - Key: ServiceName
+          Value: !Ref ServiceName
+        - Key: StageName
+          Value: !Ref StageName
+
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${ServiceName}-${StageName}-codebuild-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+        - arn:aws:iam::aws:policy/AmazonCodeGuruSecurityScanAccess
+      Policies:
+        - PolicyName: !Sub ${ServiceName}-${StageName}-codebuild-policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:DescribeKey
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:CompleteLayerUpload
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:PutImage
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource:
+                  - !Sub "arn:aws:s3:::${BridgeBucket}/*"
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource:
+                  - !Sub "arn:aws:s3:::${BridgeBucket}"
+      Tags:
+        - Key: Name
+          Value: !Sub ${ServiceName}-${StageName}-codebuild-role
+        - Key: ServiceName
+          Value: !Ref ServiceName
+        - Key: StageName
+          Value: !Ref StageName
+
+  CodePipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Sub ${ServiceName}-${StageName}-codepipeline
+      RoleArn: !GetAtt CodePipelineRole.Arn
+      ArtifactStores:
+        - Region: !Ref AWS::Region
+          ArtifactStore:
+            Type: S3
+            Location: !Ref PipelineArtifactBucket
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: SourceAction
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeStarSourceConnection
+                Version: 1
+              OutputArtifacts:
+                - Name: SourceOutput
+              Configuration:
+                ConnectionArn: !Ref ConnectionArn
+                FullRepositoryId: !Ref RepositoryId
+                BranchName: !Ref BranchName
+              RunOrder: 1
+        - Name: StaticAnalysis
+          Actions:
+            - Name: Prepare
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: 1
+              InputArtifacts:
+                - Name: SourceOutput
+              OutputArtifacts:
+                - Name: PrepareOutput
+              Configuration:
+                ProjectName: !Ref StaticAnalysisCodeBuildProject
+                BuildspecOverride: codepipeline/buildspecs/prepare.yml
+              RunOrder: 1
+            - Name: SCA
+              ActionTypeId:
+                Category: Invoke
+                Owner: AWS
+                Provider: InspectorScan
+                Version: 1
+              InputArtifacts:
+                - Name: PrepareOutput
+              OutputArtifacts:
+                - Name: InspectorScanOutput
+              Configuration:
+                InspectorRunMode: SourceCodeScan
+                CriticalThreshold: 1
+              RunOrder: 2
+            - Name: CodeScan
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: 1
+              InputArtifacts:
+                - Name: SourceOutput
+              Configuration:
+                ProjectName: !Ref StaticAnalysisCodeBuildProject
+                BuildspecOverride: codepipeline/buildspecs/lint.yml
+              RunOrder: 2
+            - Name: UnitTest
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: 1
+              InputArtifacts:
+                - Name: SourceOutput
+              Configuration:
+                ProjectName: !Ref StaticAnalysisCodeBuildProject
+                BuildspecOverride: codepipeline/buildspecs/unit_test.yml
+              RunOrder: 2
+            - Name: SASTScan
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: 1
+              InputArtifacts:
+                - Name: SourceOutput
+              OutputArtifacts:
+                - Name: SASTScanOutput
+              Configuration:
+                ProjectName: !Ref StaticAnalysisCodeBuildProject
+                BuildspecOverride: codepipeline/buildspecs/sast.yml
+              RunOrder: 2
+        - Name: Deploy
+          Actions:
+            - Name: SamDeploy
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: 1
+              InputArtifacts:
+                - Name: SourceOutput
+              Configuration:
+                ProjectName: !Ref BuildAndDeployCodeBuildProject
+                BuildspecOverride: codepipeline/buildspecs/sam_deploy.yml
+              RunOrder: 3
+      Tags:
+        - Key: Name
+          Value: !Sub ${ServiceName}-${StageName}-codepipeline
+        - Key: ServiceName
+          Value: !Ref ServiceName
+        - Key: StageName
+          Value: !Ref StageName
+
+  CodePipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${ServiceName}-${StageName}-codepipeline-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codepipeline.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: CodePipelinePermissions
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - codebuild:*
+                  - codepipeline:*
+                  - s3:*
+                  - codestar-connections:UseConnection
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - inspector-scan:ScanSbom
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codepipeline/${ServiceName}-${StageName}-codepipeline*'
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource:
+                  - !GetAtt CodeBuildServiceRole.Arn
+      Tags:
+        - Key: Name
+          Value: !Sub ${ServiceName}-${StageName}-codepipeline-role
+        - Key: ServiceName
+          Value: !Ref ServiceName
+        - Key: StageName
+          Value: !Ref StageName
+

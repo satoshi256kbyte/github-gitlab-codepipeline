@@ -5,7 +5,6 @@ import { NetworkStack } from './lib/network-stack';
 import { IamStack } from './lib/iam-stack';
 import { LambdaStack } from './lib/lambda-stack';
 import { Ec2Stack } from './lib/ec2-stack';
-import { PipelineStack } from './lib/pipeline-stack';
 
 const app = new cdk.App();
 
@@ -69,17 +68,6 @@ cicdTools.forEach(cicdTool => {
         port: portMapping[cicdTool as keyof typeof portMapping],
         description: `EC2 infrastructure for CI/CD comparison project (${cicdTool})`,
     });
-});
-
-import { parameters } from './parameters';
-
-// CodePipelineスタック
-const pipelineStack = new PipelineStack(app, createResourceName('stack', 'pipeline'), {
-    ...commonProps,
-    connectionArn: parameters.connectionArn,
-    repositoryId: parameters.repositoryId,
-    branchName: parameters.branchName,
-    description: 'CodePipeline infrastructure for CI/CD comparison project',
 });
 
 app.synth();

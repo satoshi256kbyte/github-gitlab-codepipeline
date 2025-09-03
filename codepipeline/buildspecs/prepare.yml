@@ -3,15 +3,15 @@ version: 0.2
 phases:
   install:
     commands:
-      - bash codepipeline/buildspecs/common_install.sh
+      - bash codepipeline/scripts/common_install.sh
 
   pre_build:
     commands:
-      - bash codepipeline/buildspecs/common_pre_build.sh
+      - bash codepipeline/scripts/common_pre_build.sh
 
   build:
     commands:
-      - . codepipeline/buildspecs/common_env.sh
+      - . codepipeline/scripts/common_env.sh
       - echo "Export all workspace dependencies to requirements.txt for Amazon Inspector compatibility"
       - uv export --all-packages --no-dev --frozen --no-editable -o requirements.txt --no-emit-workspace --no-hashes --no-header
 

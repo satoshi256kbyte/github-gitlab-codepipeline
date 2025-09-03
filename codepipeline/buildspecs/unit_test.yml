@@ -12,12 +12,20 @@ phases:
   build:
     commands:
       - . codepipeline/scripts/common_env.sh
-      - echo "Running static analysis..."
-      - npm run lint
+      - echo "Running unit tests..."
+      - npm run test
 
   post_build:
     commands:
-      - echo "Static analysis completed successfully"
+      - echo "Unit tests completed successfully"
+
+reports:
+  unit-test-reports:
+    files:
+      - '**/htmlcov/index.html'
+      - '**/coverage.xml'
+    base-directory: '.'
+    file-format: 'JUNITXML'
 
 cache:
   key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$(codebuild-hash-files package-lock.json)-$(codebuild-hash-files uv.lock)

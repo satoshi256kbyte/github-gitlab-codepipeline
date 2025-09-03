@@ -1,6 +1,6 @@
 # CI/CDパイプライン比較プロジェクト
 
-GitHub Actions、GitLab CI/CD、AWS CodePipelineの3つのCI/CDツールでパイプラインを構築し、それぞれの書き方と挙動の違いを比較するためのサンプルシステムです。
+GitHub ActionsとGitLab CI/CDの2つのCI/CDツールでパイプラインを構築し、それぞれの書き方と挙動の違いを比較するためのサンプルシステムです。
 
 ## 📋 目次
 
@@ -36,7 +36,6 @@ GitHub Actions、GitLab CI/CD、AWS CodePipelineの3つのCI/CDツールでパ�
 |--------|------|----------|
 | **GitHub Actions** | GitHubネイティブ、豊富なマーケットプレイス | OIDC |
 | **GitLab CI/CD** | GitLabネイティブ、統合開発環境 | 変数管理 |
-| **AWS CodePipeline** | AWSネイティブ、他AWSサービスとの連携 | IAMロール |
 
 ## プロジェクト構造
 
@@ -51,9 +50,7 @@ GitHub Actions、GitLab CI/CD、AWS CodePipelineの3つのCI/CDツールでパ�
 ├── cdk/                    # AWS CDKインフラコード
 ├── modules/
 │   └── api/                # FastAPI アプリケーション
-├── codepipeline/           # CodePipelineで使用するbuildspecなど
-│   ├── buildspecs/         # CodeBuild用buildspecファイル
-│   └── scripts/            # CodePipeline用スクリプト
+├── codepipeline/           # 削除済み（CodePipelineアプローチは廃止）
 └── docs/                   # ドキュメント
 ```
 
@@ -125,7 +122,7 @@ GitHub Actions、GitLab CI/CD、AWS CodePipelineの3つのCI/CDツールでパ�
 
 ### 🎯 CI/CDツール比較の実行
 
-このプロジェクトの主目的である3つのCI/CDツールの比較を実行する手順：
+このプロジェクトの主目的である2つのCI/CDツールの比較を実行する手順：
 
 #### 1. インフラストラクチャのデプロイ
 
@@ -144,7 +141,6 @@ npx cdk deploy --all --profile private --region ap-northeast-1 --require-approva
 |--------|-------------|---------------|
 | GitHub Actions | `github-local-*` | Port 8080 |
 | GitLab CI/CD | `gitlab-local-*` | Port 8081 |
-| CodePipeline | `codepipeline-local-*` | Port 8082 |
 
 #### 2. CI/CDパイプラインの実行
 
@@ -156,9 +152,6 @@ git push origin main
 
 # GitLab CI/CD（GitLabでプッシュまたは手動実行）
 # GitLabリポジトリにプッシュ
-
-# CodePipeline（自動実行またはAWSコンソールから手動実行）
-aws codepipeline start-pipeline-execution --name codepipeline-local-pipeline
 ```
 
 #### 3. CI/CDツール比較テストの実行
@@ -188,10 +181,6 @@ curl https://github-local-alb-api:8080/api/items
 # GitLab CI/CD専用エンドポイント（Port 8081）
 curl https://gitlab-local-alb-api:8081/health
 curl https://gitlab-local-alb-api:8081/api/items
-
-# CodePipeline専用エンドポイント（Port 8082）
-curl https://codepipeline-local-alb-api:8082/health
-curl https://codepipeline-local-alb-api:8082/api/items
 ```
 
 #### 5. パフォーマンス比較分析
@@ -361,7 +350,6 @@ uv run pytest modules/api/tests/test_cicd_tool_comparison.py::TestCICDToolPerfor
 # 各ツール専用テスト
 uv run pytest modules/api/tests/test_cicd_tool_comparison.py -k "github" -v
 uv run pytest modules/api/tests/test_cicd_tool_comparison.py -k "gitlab" -v
-uv run pytest modules/api/tests/test_cicd_tool_comparison.py -k "codepipeline" -v
 ```
 
 ### CI/CD比較分析
@@ -543,7 +531,6 @@ uv run mypy modules/api
 - [AWS CDK Documentation](https://docs.aws.amazon.com/cdk/)
 - [GitHub Actions Documentation](https://docs.github.com/actions)
 - [GitLab CI/CD Documentation](https://docs.gitlab.com/ee/ci/)
-- [AWS CodePipeline Documentation](https://docs.aws.amazon.com/codepipeline/)
 
 ## 📄 ライセンス
 

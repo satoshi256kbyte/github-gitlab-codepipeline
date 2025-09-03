@@ -414,8 +414,8 @@ Resources:
               InputArtifacts:
                 - Name: SourceOutput
               Configuration:
-                ApplicationName: !Sub codepipeline-${StageName}-ec2-app
-                DeploymentGroupName: !Sub codepipeline-${StageName}-ec2-dg
+                ApplicationName: codepipeline-local-codedeploy-app
+                DeploymentGroupName: codepipeline-local-codedeploy-dg
               RunOrder: 4
       Tags:
         - Key: Name

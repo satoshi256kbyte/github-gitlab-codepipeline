@@ -560,7 +560,7 @@ phases:
       - SCAN_NAME="${SERVICE_NAME}-${STAGE_NAME}-sca-$(date +%s)"
       - echo "Scan name: $SCAN_NAME"
       - zip -r /tmp/source-code.zip . -x "*.git*" "node_modules/*" "*.pyc" "__pycache__/*" ".venv/*"
-      - bash ./cicd/buildspecs/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION
+      - bash ./cicd/scripts/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION
 
   post_build:
     commands:

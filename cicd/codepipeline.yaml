@@ -353,7 +353,7 @@ Resources:
                 InspectorRunMode: SourceCodeScan
                 CriticalThreshold: 1
               RunOrder: 2
-            - Name: CodeScan
+            - Name: Lint
               ActionTypeId:
                 Category: Build
                 Owner: AWS

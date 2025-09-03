@@ -447,6 +447,7 @@ Resources:
                 Action:
                   - codebuild:*
                   - codepipeline:*
+                  - codedeploy:*
                   - s3:*
                   - codestar-connections:UseConnection
                   - logs:CreateLogGroup

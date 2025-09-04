@@ -520,3 +520,97 @@ Resources:
           Value: !Ref ServiceName
         - Key: StageName
           Value: !Ref StageName
+
+  #----------------------------------------
+  # CodeDeploy
+  # CodeDeployのアプリケーション
+  #----------------------------------------
+  GitHubCodeDeployApplication:
+    Type: AWS::CodeDeploy::Application
+    Properties:
+      ApplicationName: !Sub github-${StageName}-codedeploy-application
+      ComputePlatform: Server
+      Tags:
+        - Key: Name
+          Value: !Sub github-${StageName}-codedeploy-application
+        - Key: ServiceName
+          Value: github
+        - Key: StageName
+          Value: !Ref StageName
+
+  #----------------------------------------
+  # CodeDeploy
+  # CodeDeployのデプロイグループ
+  #----------------------------------------
+  GitHubCodeDeployGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    Properties:
+      DeploymentGroupName: !Sub github-${StageName}-codedeploy-deployment-group
+      ApplicationName: !Ref GitHubCodeDeployApplication
+      AutoRollbackConfiguration:
+        Enabled: true
+        Events:
+          - DEPLOYMENT_FAILURE
+      DeploymentConfigName: CodeDeployDefault.AllAtOnce
+      Ec2TagFilters:
+        - Key: ServiceName
+          Value: github
+          Type: KEY_AND_VALUE
+        - Key: StageName
+          Value: !Ref StageName
+          Type: KEY_AND_VALUE
+      ServiceRoleArn: !GetAtt CodeDeployRole.Arn
+      Tags:
+        - Key: Name
+          Value: !Sub github-${StageName}-codedeploy-deployment-group
+        - Key: ServiceName
+          Value: github
+        - Key: StageName
+          Value: !Ref StageName
+
+  #----------------------------------------
+  # CodeDeploy
+  # CodeDeployのアプリケーション
+  #----------------------------------------
+  GitLabCodeDeployApplication:
+    Type: AWS::CodeDeploy::Application
+    Properties:
+      ApplicationName: !Sub gitlab-${StageName}-codedeploy-application
+      ComputePlatform: Server
+      Tags:
+        - Key: Name
+          Value: !Sub gitlab-${StageName}-codedeploy-application
+        - Key: ServiceName
+          Value: gitlab
+        - Key: StageName
+          Value: !Ref StageName
+
+  #----------------------------------------
+  # CodeDeploy
+  # CodeDeployのデプロイグループ
+  #----------------------------------------
+  GitLabCodeDeployGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    Properties:
+      DeploymentGroupName: !Sub gitlab-${StageName}-codedeploy-deployment-group
+      ApplicationName: !Ref GitLabCodeDeployApplication
+      AutoRollbackConfiguration:
+        Enabled: true
+        Events:
+          - DEPLOYMENT_FAILURE
+      DeploymentConfigName: CodeDeployDefault.AllAtOnce
+      Ec2TagFilters:
+        - Key: ServiceName
+          Value: gitlab
+          Type: KEY_AND_VALUE
+        - Key: StageName
+          Value: !Ref StageName
+          Type: KEY_AND_VALUE
+      ServiceRoleArn: !GetAtt CodeDeployRole.Arn
+      Tags:
+        - Key: Name
+          Value: !Sub gitlab-${StageName}-codedeploy-deployment-group
+        - Key: ServiceName
+          Value: gitlab
+        - Key: StageName
+          Value: !Ref StageName

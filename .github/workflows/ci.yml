@@ -360,7 +360,7 @@ jobs:
             --application-name "${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-codedeploy-application" \
             --deployment-group-name "${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-codedeploy-deployment-group" \
             --deployment-config-name "CodeDeployDefault.AllAtOnce" \
-            --s3-location bucket="${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-artifact-bucket",key="ec2-deployments/${{ github.sha }}/deployment-package.zip",bundleType=zip \
+            --s3-location bucket="comparison-${{ env.STAGE_NAME }}-artifact-bucket",key="ec2-deployments/${{ github.sha }}/deployment-package.zip",bundleType=zip \
             --region ${{ env.AWS_REGION }} \
             --query "deploymentId" \
             --output text)

@@ -108,52 +108,10 @@ Resources:
         - Key: StageName
           Value: !Ref StageName
 
-  NoCacheCodeBuildProject:
+  CheckCodeBuildProject:
     Type: AWS::CodeBuild::Project
     Properties:
-      Name: !Sub ${ServiceName}-${StageName}-no-cache
-      Source:
-        Type: CODEPIPELINE
-        BuildSpec: |
-          version: 0.2
-          phases:
-            install:
-              commands:
-                - echo "Default buildspec - should be overridden"
-            build:
-              commands:
-                - echo "This buildspec should be overridden by CodePipeline action"
-      Artifacts:
-        Type: CODEPIPELINE
-      Environment:
-        ComputeType: !FindInMap
-          - CodeBuildImages
-          - Standard
-          - ComputeType
-        Image: !FindInMap
-          - CodeBuildImages
-          - Standard
-          - Image
-        Type: LINUX_CONTAINER
-        EnvironmentVariables:
-          - Name: SERVICE_NAME
-            Value: !Ref ServiceName
-          - Name: STAGE_NAME
-            Value: !Ref StageName
-      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
-      Tags:
-        - Key: Name
-          Value: !Sub ${ServiceName}-${StageName}-no-cache
-        - Key: ServiceName
-          Value: !Ref ServiceName
-        - Key: StageName
-          Value: !Ref StageName
-
-  # Static Analysis CodeBuild Project (共通)
-  StaticAnalysisCodeBuildProject:
-    Type: AWS::CodeBuild::Project
-    Properties:
-      Name: !Sub ${ServiceName}-${StageName}-static-analysis
+      Name: !Sub ${ServiceName}-${StageName}-check
       Source:
         Type: CODEPIPELINE
         BuildSpec: |
@@ -169,7 +127,7 @@ Resources:
         Type: CODEPIPELINE
       Cache:
         Type: S3
-        Location: !Sub "${BridgeBucket}/cache/static-analysis"
+        Location: !Sub "${BridgeBucket}/cache/check"
       Environment:
         ComputeType: !FindInMap
           - CodeBuildImages
@@ -188,17 +146,17 @@ Resources:
       ServiceRole: !GetAtt CodeBuildServiceRole.Arn
       Tags:
         - Key: Name
-          Value: !Sub ${ServiceName}-${StageName}-static-analysis
+          Value: !Sub ${ServiceName}-${StageName}-check
         - Key: ServiceName
           Value: !Ref ServiceName
         - Key: StageName
           Value: !Ref StageName
 
   # Build and Deploy CodeBuild Project (共通)
-  BuildAndDeployCodeBuildProject:
+  DeployCodeBuildProject:
     Type: AWS::CodeBuild::Project
     Properties:
-      Name: !Sub ${ServiceName}-${StageName}-build-and-deploy
+      Name: !Sub ${ServiceName}-${StageName}-deploy
       Source:
         Type: CODEPIPELINE
         BuildSpec: |
@@ -214,7 +172,7 @@ Resources:
         Type: CODEPIPELINE
       Cache:
         Type: S3
-        Location: !Sub "${BridgeBucket}/cache/build-and-deploy"
+        Location: !Sub "${BridgeBucket}/cache/deploy"
       Environment:
         ComputeType: !FindInMap
           - CodeBuildImages
@@ -238,7 +196,7 @@ Resources:
       ServiceRole: !GetAtt CodeBuildServiceRole.Arn
       Tags:
         - Key: Name
-          Value: !Sub ${ServiceName}-${StageName}-build-and-deploy
+          Value: !Sub ${ServiceName}-${StageName}-deploy
         - Key: ServiceName
           Value: !Ref ServiceName
         - Key: StageName
@@ -336,7 +294,7 @@ Resources:
               OutputArtifacts:
                 - Name: PrepareOutput
               Configuration:
-                ProjectName: !Ref StaticAnalysisCodeBuildProject
+                ProjectName: !Ref CheckCodeBuildProject
                 BuildspecOverride: cicd/buildspecs/prepare.yml
               RunOrder: 1
             - Name: SCA
@@ -362,7 +320,7 @@ Resources:
               InputArtifacts:
                 - Name: SourceOutput
               Configuration:
-                ProjectName: !Ref StaticAnalysisCodeBuildProject
+                ProjectName: !Ref CheckCodeBuildProject
                 BuildspecOverride: cicd/buildspecs/lint.yml
               RunOrder: 2
             - Name: UnitTest
@@ -374,7 +332,7 @@ Resources:
               InputArtifacts:
                 - Name: SourceOutput
               Configuration:
-                ProjectName: !Ref StaticAnalysisCodeBuildProject
+                ProjectName: !Ref CheckCodeBuildProject
                 BuildspecOverride: cicd/buildspecs/unit_test.yml
               RunOrder: 2
             - Name: SAST
@@ -388,7 +346,7 @@ Resources:
               OutputArtifacts:
                 - Name: SASTScanOutput
               Configuration:
-                ProjectName: !Ref StaticAnalysisCodeBuildProject
+                ProjectName: !Ref CheckCodeBuildProject
                 BuildspecOverride: cicd/buildspecs/sast.yml
               RunOrder: 2
         - Name: Deploy
@@ -402,7 +360,7 @@ Resources:
               InputArtifacts:
                 - Name: SourceOutput
               Configuration:
-                ProjectName: !Ref BuildAndDeployCodeBuildProject
+                ProjectName: !Ref DeployCodeBuildProject
                 BuildspecOverride: cicd/buildspecs/sam_deploy.yml
               RunOrder: 1
             - Name: EC2Deploy

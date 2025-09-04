@@ -33,7 +33,7 @@ artifacts:
   base-directory: '.'
 
 cache:
-  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$$(codebuild-hash-files uv.lock)
+  key: cache-key-$(codebuild-hash-files .tool-versions)-$$(codebuild-hash-files uv.lock)
   paths:
     - '/root/.cache/pip/**/*'
     - '/root/.cache/uv/**/*'

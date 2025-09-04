@@ -8,4 +8,4 @@ cd /var/www/html/
 touch database/database.sqlite
 chmod 664 database/database.sqlite
 chown apache:apache database/database.sqlite
-php artisan migrate
+# php artisan migrate

@@ -87,7 +87,7 @@ artifacts:
     - '**/*'
 
 cache:
-  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$$(codebuild-hash-files uv.lock)
+  key: cache-key-$(codebuild-hash-files .tool-versions)-$$(codebuild-hash-files uv.lock)
   paths:
     - '/root/.cache/pip/**/*'
     - '/root/.cache/uv/**/*'
@@ -127,7 +127,7 @@ phases:
       - echo "Static analysis completed successfully"
 
 cache:
-  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$$(codebuild-hash-files uv.lock)
+  key: cache-key-$(codebuild-hash-files .tool-versions)-$$(codebuild-hash-files uv.lock)
   paths:
     - '/root/.cache/pip/**/*'
     - '/root/.cache/uv/**/*'
@@ -281,7 +281,7 @@ artifacts:
       - $SCAN_NAME.json
 
 cache:
-  key: cache-key-include-dev-$(codebuild-hash-files .tool-versions)-$$(codebuild-hash-files uv.lock)
+  key: cache-key-$(codebuild-hash-files .tool-versions)-$$(codebuild-hash-files uv.lock)
   paths:
     - '/root/.cache/pip/**/*'
     - '/root/.cache/uv/**/*'

@@ -328,6 +328,7 @@ jobs:
           S3_KEY="ec2-deployments/${{ github.sha }}/deployment-package.zip"
 
           aws s3 cp deployment-package.zip s3://$BUCKET_NAME/$S3_KEY
+          echo "BUCKET_NAME=$BUCKET_NAME" >> $GITHUB_ENV
           echo "S3_LOCATION=s3://$BUCKET_NAME/$S3_KEY" >> $GITHUB_ENV
 
       - name: Deploy to EC2 using CodeDeploy
@@ -360,7 +361,7 @@ jobs:
             --application-name "${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-codedeploy-application" \
             --deployment-group-name "${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-codedeploy-deployment-group" \
             --deployment-config-name "CodeDeployDefault.AllAtOnce" \
-            --s3-location bucket="$BUCKET_NAME",key="ec2-deployments/${{ github.sha }}/deployment-package.zip",bundleType=zip \
+            --s3-location bucket="${{ env.BUCKET_NAME }}",key="ec2-deployments/${{ github.sha }}/deployment-package.zip",bundleType=zip \
             --region ${{ env.AWS_REGION }} \
             --query "deploymentId" \
             --output text)

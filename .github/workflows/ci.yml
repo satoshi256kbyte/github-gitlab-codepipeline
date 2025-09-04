@@ -335,8 +335,8 @@ jobs:
           # 既存のアクティブなデプロイメントを確認・停止
           echo "Checking for active deployments..."
           ACTIVE_DEPLOYMENTS=$(aws deploy list-deployments \
-            --application-name "github-local-codedeploy-app" \
-            --deployment-group-name "github-local-codedeploy-dg" \
+            --application-name "${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-codedeploy-application" \
+            --deployment-group-name "${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-codedeploy-deployment-group" \
             --include-only-statuses "Created" "Queued" "InProgress" \
             --query "deployments" \
             --output text \

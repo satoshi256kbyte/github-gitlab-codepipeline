@@ -317,11 +317,9 @@ jobs:
 
       - name: Create deployment package
         run: |
-          # GitHub Actions専用のappspec.ymlを使用
-          cp appspec-ec2-github.yml appspec.yml
           zip -r deployment-package.zip . \
             -x "*.git*" "node_modules/*" "*.pyc" "__pycache__/*" ".venv/*" \
-            "cdk.out/*" "*.zip" "appspec-*"
+            "cdk.out/*" "*.zip"
 
       - name: Upload to S3
         run: |

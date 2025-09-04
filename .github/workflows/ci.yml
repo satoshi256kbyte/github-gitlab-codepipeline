@@ -37,7 +37,7 @@ jobs:
           echo "Cache key: $CACHE_KEY"
 
       - name: Setup asdf
-        uses: asdf-vm/actions/setup@v3
+        uses: asdf-vm/actions/setup@v4
 
       - name: Install tools via asdf
         run: |
@@ -90,7 +90,7 @@ jobs:
           key: ${{ needs.prepare.outputs.cache-key }}
 
       - name: Setup asdf
-        uses: asdf-vm/actions/setup@v3
+        uses: asdf-vm/actions/setup@v4
 
       - name: Install tools via asdf
         run: |
@@ -133,7 +133,7 @@ jobs:
           key: ${{ needs.prepare.outputs.cache-key }}
 
       - name: Setup asdf
-        uses: asdf-vm/actions/setup@v3
+        uses: asdf-vm/actions/setup@v4
 
       - name: Install tools via asdf
         run: |
@@ -203,7 +203,7 @@ jobs:
           key: ${{ needs.prepare.outputs.cache-key }}
 
       - name: Setup asdf
-        uses: asdf-vm/actions/setup@v3
+        uses: asdf-vm/actions/setup@v4
 
       - name: Install tools via asdf
         run: |
@@ -261,7 +261,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup asdf
-        uses: asdf-vm/actions/setup@v3
+        uses: asdf-vm/actions/setup@v4
 
       - name: Install tools via asdf
         run: |

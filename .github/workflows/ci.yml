@@ -6,7 +6,6 @@ on:
   pull_request:
     branches: [main]
 
-
 env:
   AWS_REGION: ap-northeast-1
   SERVICE_NAME: cicd-comparison
@@ -21,9 +20,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     permissions:
-        id-token: write
-        contents: read
-        security-events: write
+      id-token: write
+      contents: read
+      security-events: write
     outputs:
       cache-key: ${{ steps.cache-key.outputs.key }}
     steps:
@@ -72,9 +71,9 @@ jobs:
     needs: prepare
     environment: production
     permissions:
-        id-token: write
-        contents: read
-        security-events: write
+      id-token: write
+      contents: read
+      security-events: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -115,9 +114,9 @@ jobs:
     needs: prepare
     environment: production
     permissions:
-        id-token: write
-        contents: read
-        security-events: write
+      id-token: write
+      contents: read
+      security-events: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -169,9 +168,9 @@ jobs:
       - name: Run Trivy vulnerability scanner in fs mode
         uses: aquasecurity/trivy-action@master
         with:
-            scan-type: 'fs'
-            scan-ref: '.'
-            trivy-config: trivy-config.yaml
+          scan-type: "fs"
+          scan-ref: "."
+          trivy-config: trivy-config.yaml
 
   # SASTチェックジョブ（CodeQL + CodeGuru Security）
   sast:
@@ -180,9 +179,9 @@ jobs:
     needs: prepare
     environment: production
     permissions:
-        id-token: write
-        contents: read
-        security-events: write
+      id-token: write
+      contents: read
+      security-events: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -253,9 +252,9 @@ jobs:
     needs: [lint, test, sca, sast]
     environment: production
     permissions:
-        id-token: write
-        contents: read
-        security-events: write
+      id-token: write
+      contents: read
+      security-events: write
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout code
@@ -301,9 +300,9 @@ jobs:
     needs: [lint, test, sca, sast]
     environment: production
     permissions:
-        id-token: write
-        contents: read
-        security-events: write
+      id-token: write
+      contents: read
+      security-events: write
     if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout code
@@ -344,7 +343,7 @@ jobs:
             --query "deployments" \
             --output text \
             --region ${{ env.AWS_REGION }})
-          
+
           if [ ! -z "$ACTIVE_DEPLOYMENTS" ] && [ "$ACTIVE_DEPLOYMENTS" != "None" ]; then
             echo "Found active deployment(s): $ACTIVE_DEPLOYMENTS"
             for DEPLOYMENT_ID in $ACTIVE_DEPLOYMENTS; do
@@ -357,11 +356,11 @@ jobs:
             echo "Waiting for deployments to stop..."
             sleep 30
           fi
-          
+
           # 新しいデプロイメントを作成
           DEPLOYMENT_ID=$(aws deploy create-deployment \
-            --application-name "github-local-codedeploy-app" \
-            --deployment-group-name "github-local-codedeploy-dg" \
+            --application-name "${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-codedeploy-application" \
+            --deployment-group-name "${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-codedeploy-deployment-group" \
             --deployment-config-name "CodeDeployDefault.AllAtOnce" \
             --s3-location bucket="${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-artifact-bucket",key="ec2-deployments/${{ github.sha }}/deployment-package.zip",bundleType=zip \
             --region ${{ env.AWS_REGION }} \

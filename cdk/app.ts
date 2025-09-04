@@ -4,7 +4,6 @@ import * as cdk from 'aws-cdk-lib';
 import { NetworkStack } from './lib/network-stack';
 import { IamStack } from './lib/iam-stack';
 import { LambdaStack } from './lib/lambda-stack';
-import { Ec2Stack } from './lib/ec2-stack';
 
 const app = new cdk.App();
 
@@ -53,20 +52,6 @@ cicdTools.forEach(cicdTool => {
         vpc: networkStack.vpc,
         cicdTool: cicdTool,
         description: `Lambda and API Gateway infrastructure for CI/CD comparison project (${cicdTool})`,
-    });
-});
-
-// CI/CDツール別EC2スタック
-const ec2Stacks: { [key: string]: Ec2Stack } = {};
-const portMapping = { github: 8080, gitlab: 8081, codepipeline: 8082 };
-
-cicdTools.forEach(cicdTool => {
-    ec2Stacks[cicdTool] = new Ec2Stack(app, `${cicdTool}-${createResourceName('stack', 'ec2')}`, {
-        ...commonProps,
-        vpc: networkStack.vpc,
-        cicdTool: cicdTool,
-        port: portMapping[cicdTool as keyof typeof portMapping],
-        description: `EC2 infrastructure for CI/CD comparison project (${cicdTool})`,
     });
 });
 

@@ -1,0 +1,476 @@
+Description: 
+  "Serverworks skillup training"
+
+Metadata: 
+  AWS::CloudFormation::Interface: 
+    ParameterGroups: 
+      - 
+        Label: 
+          default: "Common parameters"
+        Parameters: 
+          - "ServiceName"
+          - "StageName"
+
+Parameters: 
+  #----------------------------------------
+  # Common parameters
+  # サービス名とステージ名を指定
+  # このCI/CDをサービスごとに流用したり、
+  # 1サービスで開発・ステージング・本番環境の複数環境を構築するのに利用してください
+  #---------------------------------------- 
+  ServiceName: 
+    Description: "Service name"
+    Type: "String"
+    Default: "training"
+  StageName: 
+    Description: "Stage name"
+    Type: "String"
+    Default: "development"
+    AllowedValues: 
+      - "development"
+      - "staging"
+      - "production"
+
+Resources: 
+
+  #----------------------------------------
+  # S3 Bucket for CodePipeline
+  # ソースコードのZipファイルを格納するバケット
+  # ここにファイルをアップロードするとCodePipelineが起動します
+  # このバケットはバージョニングが有効である必要があります
+  #---------------------------------------- 
+  PipelineSourceBucket: 
+    Type: "AWS::S3::Bucket"
+    Properties: 
+      BucketName: 
+        !Sub "${ServiceName}-${StageName}-${AWS::AccountId}-source-bucket"
+      VersioningConfiguration: 
+        Status: "Enabled"
+      PublicAccessBlockConfiguration: 
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+      BucketEncryption: 
+        ServerSideEncryptionConfiguration: 
+          - 
+            ServerSideEncryptionByDefault: 
+              SSEAlgorithm: "AES256"
+      Tags: 
+        - 
+          Key: "Name"
+          Value: 
+            !Sub "${ServiceName}-${StageName}-${AWS::AccountId}-source-bucket"
+        - 
+          Key: "ServiceName"
+          Value: 
+            !Ref "ServiceName"
+        - 
+          Key: "StageName"
+          Value: 
+            !Ref "StageName"
+
+  #----------------------------------------
+  # S3 Bucket for CodePipeline
+  # CI/CDパイプラインが一時ファイルを格納するバケット
+  # ビルドした実行可能ファイルなどを格納します
+  #---------------------------------------- 
+  PipelineArtifactBucket: 
+    Type: "AWS::S3::Bucket"
+    Properties: 
+      BucketName: 
+        !Sub "${ServiceName}-${StageName}-${AWS::AccountId}-artifact-bucket"
+      VersioningConfiguration: 
+        Status: "Suspended"
+      PublicAccessBlockConfiguration: 
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+      BucketEncryption: 
+        ServerSideEncryptionConfiguration: 
+          - 
+            ServerSideEncryptionByDefault: 
+              SSEAlgorithm: "AES256"
+      Tags: 
+        - 
+          Key: "Name"
+          Value: 
+            !Sub "${ServiceName}-${StageName}-${AWS::AccountId}-artifact-bucket"
+        - 
+          Key: "ServiceName"
+          Value: 
+            !Ref "ServiceName"
+        - 
+          Key: "StageName"
+          Value: 
+            !Ref "StageName"
+
+  #----------------------------------------
+  # CodeBuild
+  # CodeBuildのビルドプロジェクト
+  #---------------------------------------- 
+  CodeBuildProject: 
+    Type: "AWS::CodeBuild::Project"
+    Properties: 
+      Name: 
+        !Sub "${ServiceName}-${StageName}-codebuild"
+      Source: 
+        Type: "CODEPIPELINE"
+      Artifacts: 
+        Type: "CODEPIPELINE"
+      Cache: 
+        Modes: 
+          - "LOCAL_DOCKER_LAYER_CACHE"
+        Type: "LOCAL"
+      Environment: 
+        ComputeType: "BUILD_GENERAL1_SMALL"
+        Image: "aws/codebuild/standard:7.0"
+        Type: "LINUX_CONTAINER"
+        EnvironmentVariables: 
+          - 
+            Name: "SERVICE_NAME"
+            Value: 
+              !Ref "ServiceName"
+          - 
+            Name: "STAGE_NAME"
+            Value: 
+              !Ref "StageName"
+      ServiceRole: 
+        !GetAtt "CodeBuildRole.Arn"
+      Tags: 
+        - 
+          Key: "Name"
+          Value: 
+            !Sub "${ServiceName}-${StageName}-codebuild"
+        - 
+          Key: "ServiceName"
+          Value: 
+            !Ref "ServiceName"
+        - 
+          Key: "StageName"
+          Value: 
+            !Ref "StageName"
+
+  #----------------------------------------
+  # CodeDeploy
+  # CodeDeployのアプリケーション
+  #---------------------------------------- 
+  CodeDeployApplication: 
+    Type: "AWS::CodeDeploy::Application"
+    Properties: 
+      ApplicationName: 
+        !Sub "${ServiceName}-${StageName}-codedeploy"
+      ComputePlatform: "Server"
+      Tags: 
+        - 
+          Key: "Name"
+          Value: 
+            !Sub "${ServiceName}-${StageName}-codedeploy"
+        - 
+          Key: "ServiceName"
+          Value: 
+            !Ref "ServiceName"
+        - 
+          Key: "StageName"
+          Value: 
+            !Ref "StageName"
+
+  #----------------------------------------
+  # CodeDeploy
+  # CodeDeployのデプロイグループ
+  #---------------------------------------- 
+  CodeDeployGroup: 
+    Type: "AWS::CodeDeploy::DeploymentGroup"
+    Properties: 
+      DeploymentGroupName: 
+        !Sub "${ServiceName}-${StageName}-deployment-group"
+      ApplicationName: 
+        !Ref "CodeDeployApplication"
+      AutoRollbackConfiguration: 
+        Enabled: true
+        Events: 
+          - "DEPLOYMENT_FAILURE"
+      DeploymentConfigName: "CodeDeployDefault.AllAtOnce"
+      Ec2TagFilters: 
+        - 
+          Key: "ServiceName"
+          Value: 
+            !Ref "ServiceName"
+          Type: "KEY_AND_VALUE"
+        - 
+          Key: "StageName"
+          Value: 
+            !Ref "StageName"
+          Type: "KEY_AND_VALUE"
+      ServiceRoleArn: !GetAtt "CodeDeployRole.Arn"
+      Tags: 
+        - 
+          Key: "Name"
+          Value: 
+            !Sub "${ServiceName}-${StageName}-deployment-group"
+        - 
+          Key: "ServiceName"
+          Value: 
+            !Ref "ServiceName"
+        - 
+          Key: "StageName"
+          Value: 
+            !Ref "StageName"
+
+  #----------------------------------------
+  # CodePipeline
+  # パイプラインの各ステージの定義と実行順序です
+  #---------------------------------------- 
+  CodePipeline: 
+    Type: "AWS::CodePipeline::Pipeline"
+    Properties: 
+      Name: 
+        !Sub "${ServiceName}-${StageName}-codepipeline"
+      PipelineType: "V2"
+      RoleArn: 
+        !GetAtt "CodePipelineRole.Arn"
+      ArtifactStore: 
+        Type: "S3"
+        Location: 
+          !Ref "PipelineArtifactBucket"
+      Stages: 
+        #---------------------------------------
+        # https://docs.aws.amazon.com/ja_jp/codepipeline/latest/userguide/pipelines-trigger-source-repo-changes-cfn.html
+        # https://docs.aws.amazon.com/ja_jp/AWSCloudFormation/latest/UserGuide/aws-resource-codepipeline-pipeline.html
+        #--------------------------------------
+        - Name: Source
+          Actions:
+            - Name: SourceAction
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: S3
+                Version: 1
+              OutputArtifacts:
+                - Name: SourceOutput
+              Configuration:
+                S3Bucket: !Ref PipelineSourceBucket
+                S3ObjectKey: !Sub ${ServiceName}-${StageName}.zip
+              RunOrder: 1
+        - 
+          Name: "Build"
+          Actions: 
+            - 
+              Name: "BuildAction"
+              ActionTypeId: 
+                Category: "Build"
+                Owner: "AWS"
+                Provider: "CodeBuild"
+                Version: "1"
+              InputArtifacts: 
+                - 
+                  Name: "SourceOutput"
+              OutputArtifacts: 
+                - 
+                  Name: "BuildOutput"
+              Configuration: 
+                ProjectName: 
+                  !Ref "CodeBuildProject"
+              RunOrder: 1
+        - 
+          Name: "Deploy"
+          Actions: 
+            - 
+              Name: "DeployAction"
+              InputArtifacts: 
+                - 
+                  Name: "BuildOutput" 
+              ActionTypeId: 
+                Category: "Deploy"
+                Owner: "AWS"
+                Version: "1"
+                Provider: "CodeDeploy"
+              Configuration: 
+                ApplicationName: !Ref "CodeDeployApplication"
+                DeploymentGroupName: !Ref "CodeDeployGroup"
+              RunOrder: 1 
+      Tags: 
+        - 
+          Key: "Name"
+          Value: 
+            !Sub "${ServiceName}-${StageName}-codepipeline"
+        - 
+          Key: "ServiceName"
+          Value: 
+            !Ref "ServiceName"
+        - 
+          Key: "StageName"
+          Value: 
+            !Ref "StageName"
+
+  #----------------------------------------
+  # IAM Role for CodePipeline
+  # https://docs.aws.amazon.com/ja_jp/codepipeline/latest/userguide/security-iam.html#how-to-custom-role
+  # https://docs.aws.amazon.com/ja_jp/codepipeline/latest/userguide/approvals-service-role-permissions.html
+  # CodePipelineに付与するIAMロール
+  # アップされたソースコードを取得したり、ビルドを実行したり、デプロイを実行するための権限を持ちます
+  #----------------------------------------
+  CodePipelineRole: 
+    Type: "AWS::IAM::Role"
+    Properties: 
+      RoleName: 
+        !Sub "${ServiceName}-${StageName}-codepipeline-role"
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: 
+                - "codepipeline.amazonaws.com"
+            Action: "sts:AssumeRole"
+      Path: "/"
+      Policies: 
+        - 
+          PolicyName: 
+            !Sub "${ServiceName}-${StageName}-codepipeline-policy"
+          PolicyDocument: 
+            Version: "2012-10-17"
+            Statement: 
+              - 
+                Effect: "Allow"
+                Action: 
+                  - "codebuild:BatchGetBuilds"
+                  - "codebuild:StartBuild"
+                  - "codedeploy:CreateDeployment"
+                  - "codedeploy:GetDeployment"
+                  - "codedeploy:GetDeploymentConfig"
+                  - "codedeploy:GetApplicationRevision"
+                  - "codedeploy:RegisterApplicationRevision"
+                  - "s3:*"
+                Resource: "*"
+      Tags: 
+        - 
+          Key: "Name"
+          Value: 
+            !Sub "${ServiceName}-${StageName}-codepipeline-role"
+        - 
+          Key: "ServiceName"
+          Value: 
+            !Ref "ServiceName"
+        - 
+          Key: "StageName"
+          Value: 
+            !Ref "StageName"
+
+  #----------------------------------------
+  # IAM Role for CodeBuild
+  # https://docs.aws.amazon.com/ja_jp/codebuild/latest/userguide/setting-up.html#setting-up-service-permissions-group
+  # CodeBuildに付与するIAMロール
+  # ビルドを実行するとログが出力されるため、CloudWatch Logsへの書き込み権限が必要です
+  # 前ステップで取得したソースコードを取得するため、S3へのアクセス権限が必要です
+  #----------------------------------------
+  CodeBuildRole: 
+    Type: "AWS::IAM::Role"
+    Properties: 
+      RoleName: 
+        !Sub "${ServiceName}-${StageName}-codebuild-role"
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: "codebuild.amazonaws.com"
+            Action: "sts:AssumeRole"
+      Policies: 
+        - 
+          PolicyName: 
+            !Sub "${ServiceName}-${StageName}-codebuild-policy"
+          PolicyDocument: 
+            Version: "2012-10-17"
+            Statement: 
+              - 
+                Effect: "Allow"
+                Action: 
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "*"
+              - 
+                Sid: "S3GetObjectPolicy"
+                Effect: "Allow"
+                Action: 
+                  - "s3:GetObject"
+                  - "s3:GetObjectVersion"
+                Resource: "*"
+              - 
+                Effect: "Allow"
+                Action: 
+                  - "s3:PutObject"
+                Resource: "*"
+              - 
+                Effect: "Allow"
+                Action: 
+                  - "s3:GetBucketAcl"
+                  - "s3:GetBucketLocation"
+                Resource: "*"
+      Tags: 
+        - 
+          Key: "Name"
+          Value: 
+            !Sub "${ServiceName}-${StageName}-codebuild-role"
+        - 
+          Key: "ServiceName"
+          Value: 
+            !Ref "ServiceName"
+        - 
+          Key: "StageName"
+          Value: 
+            !Ref "StageName"
+
+  #----------------------------------------
+  # IAM Role for CodeDeploy
+  # CodeDeployに付与するIAMロール
+  # デプロイを実行するため、EC2インスタンスを操作するための権限を持ちます
+  #----------------------------------------
+  CodeDeployRole: 
+    Type: "AWS::IAM::Role"
+    Properties: 
+      RoleName: 
+        !Sub "${ServiceName}-${StageName}-codedeploy-role"
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: 
+                - "codedeploy.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      ManagedPolicyArns: 
+        - "arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole"
+      Policies: 
+        - 
+          PolicyName: 
+            !Sub "${ServiceName}-${StageName}-codedeploy-policy"
+          PolicyDocument: 
+            Version: "2012-10-17"
+            Statement: 
+              - 
+                Effect: "Allow"
+                Action: 
+                  - "iam:PassRole"
+                  - "autoscaling:*"
+                  - "ec2:*"
+                Resource: "*"
+      Tags: 
+        - 
+          Key: "Name"
+          Value: 
+            !Sub "${ServiceName}-${StageName}-codedeploy-role"
+        - 
+          Key: "ServiceName"
+          Value: 
+            !Ref "ServiceName"
+        - 
+          Key: "StageName"
+          Value: 
+            !Ref "StageName"

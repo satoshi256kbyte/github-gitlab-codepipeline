@@ -1,0 +1,562 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Serverworks skillup training"
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Common parameters"
+        Parameters:
+          - "ServiceName"
+          - "StageName"
+      - Label:
+          default: "Parameters for VPC"
+        Parameters:
+          - "VpcCIDR"
+          - "PublicSubnet1CIDR"
+          - "PublicSubnet2CIDR"
+          - "PrivateSubnet1CIDR"
+          - "PrivateSubnet2CIDR"
+      - Label:
+          default: "Parameters for EC2"
+        Parameters:
+          - "Ec2InstanceType"
+          - "KeyPairName"
+          - "VolumeSize"
+          - "AmiID"
+
+Parameters:
+  #----------------------------------------
+  # Common parameters
+  # サービス名とステージ名を指定
+  # このCI/CDをサービスごとに流用したり、
+  # 1サービスで開発・ステージング・本番環境の複数環境を構築するのに利用してください
+  #----------------------------------------
+  ServiceName:
+    Description: "Service name"
+    Type: "String"
+    Default: "codepipeline"
+    AllowedValues:
+      - "codepipeline"
+      - "github"
+      - "gitlab"
+  StageName:
+    Description: "Stage name"
+    Type: "String"
+    Default: "local"
+    AllowedValues:
+      - "local"
+      - "dev"
+      - "stg"
+      - "prod"
+
+  #----------------------------------------
+  # Parameters for VPC
+  # VPCのCIDR、サブネットのCIDRを指定
+  # 特別な要件がなければデフォルト値で問題ありません
+  #----------------------------------------
+  VpcCIDR:
+    Description: "Please enter the IP range (CIDR notation) for this VPC"
+    Type: "String"
+    Default: "10.192.0.0/16"
+
+  PublicSubnet1CIDR:
+    Description: "Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone"
+    Type: "String"
+    Default: "10.192.10.0/24"
+
+  PublicSubnet2CIDR:
+    Description: "Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone"
+    Type: "String"
+    Default: "10.192.11.0/24"
+
+  PrivateSubnet1CIDR:
+    Description: "Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone"
+    Type: "String"
+    Default: "10.192.20.0/24"
+
+  PrivateSubnet2CIDR:
+    Description: "Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone"
+    Type: "String"
+    Default: "10.192.21.0/24"
+
+  #----------------------------------------
+  # Parameters for EC2
+  # WEBサーバーとなりEC2のパラメータです
+  # KeyPairNameはEC2キーペアです
+  # EC2の画面のキーペアのメニューから事前に作成してください
+  #----------------------------------------
+  Ec2InstanceType:
+    Description: "WebServer EC2 instance type"
+    Type: "String"
+    Default: "t3.micro"
+    AllowedValues:
+      - "t3.micro"
+      - "t3.small"
+      - "t3.medium"
+      - "t3.large"
+    ConstraintDescription: "must be a valid EC2 instance type."
+  KeyPairName:
+    Description: "Name of an existing EC2 KeyPair to enable SSH access to the instance"
+    Type: "AWS::EC2::KeyPair::KeyName"
+    ConstraintDescription: "must be the name of an existing EC2 KeyPair."
+  VolumeSize:
+    Type: "Number"
+    Description: "Root volume size in GB"
+    Default: "50"
+    MinValue: "1"
+    MaxValue: "1000"
+  AmiID:
+    Description: "Ami ID for Amazon Linux 2023"
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Default: "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
+
+Resources:
+  #----------------------------------------
+  # VPC
+  #----------------------------------------
+  VPC:
+    Type: "AWS::EC2::VPC"
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: "Name"
+          Value: !Sub "${ServiceName}-${StageName}-vpc"
+
+  #----------------------------------------
+  # Internet Gateway
+  #----------------------------------------
+  InternetGateway:
+    Type: "AWS::EC2::InternetGateway"
+    Properties:
+      Tags:
+        - Key: "Name"
+          Value: !Sub "${ServiceName}-${StageName}-igw"
+
+  InternetGatewayAttachment:
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  #----------------------------------------
+  # Subnets
+  #----------------------------------------
+  PublicSubnet1:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      CidrBlock: !Ref PublicSubnet1CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: "Name"
+          Value: !Sub "${ServiceName}-${StageName}-subnet-public-1"
+
+  PublicSubnet2:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      CidrBlock: !Ref PublicSubnet2CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: "Name"
+          Value: !Sub "${ServiceName}-${StageName}-subnet-public-2"
+
+  PublicRouteTable:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: "Name"
+          Value: !Sub "${ServiceName}-${StageName}-public-routes"
+
+  DefaultPublicRoute:
+    Type: "AWS::EC2::Route"
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RouteTableAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+
+  PublicSubnet2RouteTableAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet2
+
+  PrivateSubnet1:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      CidrBlock: !Ref PrivateSubnet1CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: "Name"
+          Value: !Sub "${ServiceName}-${StageName}-subnet-private-1"
+
+  PrivateSubnet2:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      CidrBlock: !Ref PrivateSubnet2CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: "Name"
+          Value: !Sub "${ServiceName}-${StageName}-subnet-private-2"
+        - Key: "ServiceName"
+          Value: !Ref ServiceName
+        - Key: "StageName"
+          Value: !Ref StageName
+
+  PrivateRouteTable1:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: "Name"
+          Value: !Sub "${ServiceName}-${StageName}-private-routetable-1"
+        - Key: "ServiceName"
+          Value: !Ref ServiceName
+        - Key: "StageName"
+          Value: !Ref StageName
+
+  NatGatewayEIP:
+    Type: "AWS::EC2::EIP"
+    DependsOn: "InternetGatewayAttachment"
+    Properties:
+      Domain: "vpc"
+
+  NatGateway:
+    Type: "AWS::EC2::NatGateway"
+    Properties:
+      AllocationId: !GetAtt NatGatewayEIP.AllocationId
+      SubnetId: !Ref PublicSubnet1
+      Tags:
+        - Key: Name
+          Value: !Sub ${ServiceName}-${StageName}-ngw
+        - Key: "ServiceName"
+          Value: !Ref ServiceName
+        - Key: "StageName"
+          Value: !Ref StageName
+
+  DefaultPrivateRoute1:
+    Type: "AWS::EC2::Route"
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      SubnetId: !Ref PrivateSubnet1
+
+  PrivateRouteTable2:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: "Name"
+          Value: !Sub "${ServiceName}-${StageName}-private-routetable-2"
+
+  DefaultPrivateRoute2:
+    Type: "AWS::EC2::Route"
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  PrivateSubnet2RouteTableAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      SubnetId: !Ref PrivateSubnet2
+
+  #----------------------------------------
+  # IAM Role for EC2
+  # 本サンプルはCodeDeployからデプロイを可能とするために、
+  # S3の各種操作を許可するIAMロールを作成します
+  # CodePipelineがS3にアップする実行可能モジュールをダウンロードするために必要です
+  #----------------------------------------
+  WebIAMRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub "${ServiceName}-${StageName}-ec2-web-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "ec2.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+      Policies:
+        - PolicyName: !Sub "${ServiceName}-${StageName}-ec2-web-policy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "s3:GetObject"
+                  - "s3:GetObjectVersion"
+                  - "s3:GetBucketVersioning"
+                Resource: "*"
+      Tags:
+        - Key: "Name"
+          Value: !Sub "${ServiceName}-${StageName}-ec2-web-role"
+        - Key: "ServiceName"
+          Value: !Ref "ServiceName"
+        - Key: "StageName"
+          Value: !Ref "StageName"
+
+  #----------------------------------------
+  # IAM Instance Profile for EC2
+  # EC2インスタンスと上述のIAMロールを関連付けるための設定です
+  #----------------------------------------
+  WebInstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      Path: "/"
+      Roles:
+        - !Ref WebIAMRole
+      InstanceProfileName: !Sub "${ServiceName}-${StageName}-ec2-web-profile"
+
+  #----------------------------------------
+  # Security Group for Web Server
+  #----------------------------------------
+  WebSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Security group for web server"
+      GroupName: !Sub "${ServiceName}-${StageName}-sg-web"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: "tcp"
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref ALBSecurityGroup
+      Tags:
+        - Key: "Name"
+          Value: !Sub "${ServiceName}-${StageName}-sg-web"
+        - Key: "ServiceName"
+          Value: !Ref "ServiceName"
+        - Key: "StageName"
+          Value: !Ref "StageName"
+
+  #----------------------------------------
+  # Launch Template
+  # https://docs.aws.amazon.com/ja_jp/AWSCloudFormation/latest/UserGuide/aws-resource-ec2-launchtemplate.html#cfn-ec2-launchtemplate-launchtemplatedata
+  # 本サンプルではオートスケーリングを使用可能にしています
+  # この設定は、オートスケーリングでEC2を起動する際に使用されます
+  #----------------------------------------
+  LaunchTemplate:
+    Type: "AWS::EC2::LaunchTemplate"
+    Properties:
+      LaunchTemplateName: !Sub "${ServiceName}-${StageName}-launch-template"
+      LaunchTemplateData:
+        BlockDeviceMappings:
+          - Ebs:
+              VolumeSize: !Ref VolumeSize
+              VolumeType: "gp3"
+              DeleteOnTermination: true
+              Encrypted: true
+            DeviceName: "/dev/xvdcz"
+        ImageId: !Ref AmiID
+        InstanceType: !Ref Ec2InstanceType
+        KeyName: !Ref KeyPairName
+        SecurityGroupIds:
+          - !Ref WebSecurityGroup
+        IamInstanceProfile:
+          Arn: !GetAtt WebInstanceProfile.Arn
+        UserData:
+          Fn::Base64: |
+            #cloud-config
+            package_update: true
+            package_upgrade: true
+            packages:
+              - wget
+            runcmd:
+              - echo "Starting CodeDeploy agent installation"
+              - cd
+              - dnf update -y
+              - dnf install -y ruby
+              - wget https://aws-codedeploy-ap-northeast-1.s3.ap-northeast-1.amazonaws.com/latest/install
+              - chmod +x ./install
+              - ./install auto
+              - systemctl enable codedeploy-agent
+              - systemctl start codedeploy-agent
+              
+              - echo "Starting Apache installation"
+              - dnf install -y httpd wget php-fpm php-mysqli php-json php php-devel
+              - echo "Health Check" > /var/www/html/healthcheck.html
+              - systemctl enable httpd
+              - systemctl start httpd
+
+      TagSpecifications:
+        - ResourceType: "launch-template"
+          Tags:
+            - Key: "Name"
+              Value: !Sub "${ServiceName}-${StageName}-ec2-web"
+            - Key: "ServiceName"
+              Value: !Ref "ServiceName"
+            - Key: "StageName"
+              Value: !Ref "StageName"
+
+  #----------------------------------------
+  # ALB Target Group
+  # ターゲットグループの設定です
+  # オートスケーリングで起動するEC2をターゲットとして指定します
+  # ターゲットグループは、ロードバランサーからのリクエストを受け取る単位です
+  #----------------------------------------
+  ALBTargetGroup:
+    Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+    Properties:
+      VpcId: !Ref VPC
+      Name: !Sub "${ServiceName}-${StageName}-tg"
+      Protocol: "HTTP"
+      Port: 80
+      HealthCheckProtocol: "HTTP"
+      HealthCheckPath: "/healthcheck.html"
+      HealthCheckPort: "traffic-port"
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+      HealthCheckTimeoutSeconds: 5
+      HealthCheckIntervalSeconds: 10
+      Matcher:
+        HttpCode: "200"
+      TargetGroupAttributes:
+        - Key: "deregistration_delay.timeout_seconds"
+          Value: "300"
+        - Key: "stickiness.enabled"
+          Value: "false"
+        - Key: "stickiness.type"
+          Value: "lb_cookie"
+        - Key: "stickiness.lb_cookie.duration_seconds"
+          Value: "86400"
+      Tags:
+        - Key: "Name"
+          Value: !Sub "${ServiceName}-${StageName}-tg"
+        - Key: "ServiceName"
+          Value: !Ref "ServiceName"
+        - Key: "StageName"
+          Value: !Ref "StageName"
+
+  #----------------------------------------
+  # AutoScaling Group
+  # オートスケーリングの設定です
+  # 上述のLaunchTemplateを使用してEC2を起動する設定です
+  # EC2の起動数の最小値、最大値を指定しています
+  # 少なくとも2台は起動し、最大5台まで増やす設定です
+  #----------------------------------------
+  AutoScalingGroup:
+    Type: "AWS::AutoScaling::AutoScalingGroup"
+    Properties:
+      AutoScalingGroupName: !Sub "${ServiceName}-${StageName}-asg"
+      LaunchTemplate:
+        LaunchTemplateId: !Ref LaunchTemplate
+        Version: !GetAtt LaunchTemplate.LatestVersionNumber
+      MaxSize: "5"
+      MinSize: "2"
+      VPCZoneIdentifier:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      MetricsCollection:
+        - Granularity: 1Minute
+          Metrics:
+            - GroupMinSize
+            - GroupMaxSize
+      TargetGroupARNs:
+        - !Ref ALBTargetGroup
+      Tags:
+        - Key: "Name"
+          Value: !Sub "${ServiceName}-${StageName}-ec2-web"
+          PropagateAtLaunch: true
+        - Key: "ServiceName"
+          Value: !Ref "ServiceName"
+          PropagateAtLaunch: true
+        - Key: "StageName"
+          Value: !Ref "StageName"
+          PropagateAtLaunch: true
+
+  #----------------------------------------
+  # ALB
+  # ロードバランサーの設定です
+  #----------------------------------------
+  InternetALB:
+    Type: "AWS::ElasticLoadBalancingV2::LoadBalancer"
+    Properties:
+      Name: !Sub "${ServiceName}-${StageName}-alb"
+      Scheme: "internet-facing"
+      LoadBalancerAttributes:
+        - Key: "deletion_protection.enabled"
+          Value: "false"
+        - Key: "idle_timeout.timeout_seconds"
+          Value: "60"
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+      Subnets:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      Tags:
+        - Key: "Name"
+          Value: !Sub "${ServiceName}-${StageName}-alb"
+        - Key: "ServiceName"
+          Value: !Ref "ServiceName"
+        - Key: "StageName"
+          Value: !Ref "StageName"
+
+  #----------------------------------------
+  # ALB Listener
+  # ロードバランサーのリスナー設定です
+  # ここでロードバランサーとターゲットグループを関連付けます
+  #----------------------------------------
+  ALBListener:
+    Type: "AWS::ElasticLoadBalancingV2::Listener"
+    Properties:
+      DefaultActions:
+        - TargetGroupArn: !Ref ALBTargetGroup
+          Type: "forward"
+      LoadBalancerArn: !Ref InternetALB
+      Port: 80
+      Protocol: "HTTP"
+
+  #----------------------------------------
+  # Security Group for ALB
+  # ALBのセキュリティグループです
+  # 外部からのhttpアクセスを許可しています
+  #----------------------------------------
+  ALBSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Security group for alb"
+      GroupName: !Sub "${ServiceName}-${StageName}-sg-alb"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: "tcp"
+          FromPort: 80
+          ToPort: 80
+          CidrIp: "0.0.0.0/0"
+      Tags:
+        - Key: "Name"
+          Value: !Sub "${ServiceName}-${StageName}-sg-alb"
+        - Key: "ServiceName"
+          Value: !Ref "ServiceName"
+        - Key: "StageName"
+          Value: !Ref "StageName"

@@ -34,17 +34,17 @@ Parameters:
   ConnectionArn:
     Description: GitHub connection ARN
     Type: String
-    Default: 'arn:aws:codeconnections:ap-northeast-1:xxxxxxxxx:connection/xxxxxxxxx'
+    Default: "arn:aws:codeconnections:ap-northeast-1:xxxxxxxxx:connection/xxxxxxxxx"
 
   RepositoryId:
     Description: GitHub repository ID
     Type: String
-    Default: 'satoshi256kbyte/github-gitlab-codepipeline'
+    Default: "satoshi256kbyte/github-gitlab-codepipeline"
 
   BranchName:
     Description: GitHub branch name
     Type: String
-    Default: 'main'
+    Default: "main"
 
 Mappings:
   CodeBuildImages:
@@ -225,7 +225,7 @@ Resources:
           - Standard
           - Image
         Type: LINUX_CONTAINER
-        PrivilegedMode: true  # ECRプッシュに必要
+        PrivilegedMode: true # ECRプッシュに必要
         EnvironmentVariables:
           - Name: SERVICE_NAME
             Value: !Ref ServiceName
@@ -267,7 +267,7 @@ Resources:
                 Action:
                   - kms:Decrypt
                   - kms:DescribeKey
-                Resource: '*'
+                Resource: "*"
               - Effect: Allow
                 Action:
                   - ecr:GetAuthorizationToken
@@ -276,7 +276,7 @@ Resources:
                   - ecr:CompleteLayerUpload
                   - ecr:BatchCheckLayerAvailability
                   - ecr:PutImage
-                Resource: '*'
+                Resource: "*"
               - Effect: Allow
                 Action:
                   - s3:GetObject
@@ -414,8 +414,8 @@ Resources:
               InputArtifacts:
                 - Name: SourceOutput
               Configuration:
-                ApplicationName: codepipeline-local-codedeploy-app
-                DeploymentGroupName: codepipeline-local-codedeploy-dg
+                ApplicationName: !Sub ${ServiceName}-${StageName}-codedeploy-application
+                DeploymentGroupName: !Sub ${ServiceName}-${StageName}-codedeploy-deployment-group
               RunOrder: 1
       Tags:
         - Key: Name
@@ -453,17 +453,17 @@ Resources:
                   - logs:CreateLogGroup
                   - logs:CreateLogStream
                   - logs:PutLogEvents
-                Resource: '*'
+                Resource: "*"
               - Effect: Allow
                 Action:
                   - inspector-scan:ScanSbom
-                Resource: '*'
+                Resource: "*"
               - Effect: Allow
                 Action:
                   - logs:CreateLogGroup
                   - logs:CreateLogStream
                   - logs:PutLogEvents
-                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/cicd/${ServiceName}-${StageName}-codepipeline*'
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/cicd/${ServiceName}-${StageName}-codepipeline*"
               - Effect: Allow
                 Action:
                   - iam:PassRole
@@ -477,3 +477,88 @@ Resources:
         - Key: StageName
           Value: !Ref StageName
 
+  #----------------------------------------
+  # IAM Role for CodeDeploy
+  # CodeDeployに付与するIAMロール
+  # デプロイを実行するため、EC2インスタンスを操作するための権限を持ちます
+  #----------------------------------------
+  CodeDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${ServiceName}-${StageName}-codedeploy-role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codedeploy.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole
+      Policies:
+        - PolicyName: !Sub ${ServiceName}-${StageName}-codedeploy-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                  - autoscaling:*
+                  - ec2:*
+                Resource: "*"
+      Tags:
+        - Key: Name
+          Value: !Sub ${ServiceName}-${StageName}-codedeploy-role
+        - Key: ServiceName
+          Value: !Ref ServiceName
+        - Key: StageName
+          Value: !Ref StageName
+
+  #----------------------------------------
+  # CodeDeploy
+  # CodeDeployのアプリケーション
+  #----------------------------------------
+  CodeDeployApplication:
+    Type: AWS::CodeDeploy::Application
+    Properties:
+      ApplicationName: !Sub ${ServiceName}-${StageName}-codedeploy-application
+      ComputePlatform: Server
+      Tags:
+        - Key: Name
+          Value: !Sub ${ServiceName}-${StageName}-codedeploy-application
+        - Key: ServiceName
+          Value: !Ref ServiceName
+        - Key: StageName
+          Value: !Ref StageName
+
+  #----------------------------------------
+  # CodeDeploy
+  # CodeDeployのデプロイグループ
+  #----------------------------------------
+  CodeDeployGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    Properties:
+      DeploymentGroupName: !Sub ${ServiceName}-${StageName}-codedeploy-deployment-group
+      ApplicationName: !Ref CodeDeployApplication
+      AutoRollbackConfiguration:
+        Enabled: true
+        Events:
+          - DEPLOYMENT_FAILURE
+      DeploymentConfigName: CodeDeployDefault.AllAtOnce
+      Ec2TagFilters:
+        - Key: ServiceName
+          Value: !Ref ServiceName
+          Type: KEY_AND_VALUE
+        - Key: StageName
+          Value: !Ref StageName
+          Type: KEY_AND_VALUE
+      ServiceRoleArn: !GetAtt CodeDeployRole.Arn
+      Tags:
+        - Key: Name
+          Value: !Sub ${ServiceName}-${StageName}-codedeploy-deployment-group
+        - Key: ServiceName
+          Value: !Ref ServiceName
+        - Key: StageName
+          Value: !Ref StageName

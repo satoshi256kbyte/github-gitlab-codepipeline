@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "cicd-pipeline-comparison"
+name = "cicd-pipeline-project"
 version = "1.0.0"
-description = "CI/CD pipeline comparison project using GitHub Actions, GitLab CI/CD, and AWS CodePipeline"
+description = "CI/CD pipeline project using GitHub Actions and AWS CodePipeline"
 authors = [
     {name = "Developer", email = "developer@example.com"}
 ]

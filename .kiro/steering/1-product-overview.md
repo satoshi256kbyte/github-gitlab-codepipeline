@@ -138,7 +138,7 @@ cache:
     - 'node_modules/**/*'
 ```
 
-run_codeguru_security.shの内容は以下の通り。
+codeguru.shの内容は以下の通り。
 
 ```bash
 #!/bin/bash
@@ -157,7 +157,7 @@ die() { echo "$*" 1>&2 ; exit 1; }
 
 zipName="/tmp/$(date +%s).zip"
 
-[ "$#" -ge 2 ] || die "2 arguments required, $# provided, pass  <scanName>, <folder> and <region> example: ./run_codeguru_security.sh MyScan upload_folder/zipFile ap-northeast-1"
+[ "$#" -ge 2 ] || die "2 arguments required, $# provided, pass  <scanName>, <folder> and <region> example: ./codeguru.sh MyScan upload_folder/zipFile ap-northeast-1"
 
 if [ ! -d "$fileOrFolder" ] && [ ! -f "$fileOrFolder" ]; then
     die "file or folder doesn't exist"
@@ -254,7 +254,7 @@ phases:
       - SCAN_NAME="${SERVICE_NAME}-${STAGE_NAME}-$(date +%s)"
       - echo "Scan name:$SCAN_NAME"
       - zip -r /tmp/source-code.zip . -x "*.git*" "node_modules/*" "*.pyc" "__pycache__/*" ".venv/*"
-      - bash ./cicd/scripts/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION
+      - bash ./cicd/scripts/codeguru.sh $SCAN_NAME /tmp/source-code.zip $AWS_DEFAULT_REGION
       - echo "SAST scan completed"
 
   post_build:

@@ -248,7 +248,6 @@ jobs:
     environment: production
     permissions:
       id-token: write
-      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -294,7 +293,6 @@ jobs:
     environment: production
     permissions:
       id-token: write
-      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v5

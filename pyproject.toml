@@ -17,10 +17,10 @@ dependencies = [
     "pydantic>=2.5.0",
     "python-multipart>=0.0.6",
     # 脆弱性テスト用 - CRITICAL脆弱性を含む古いバージョン
-    "django==2.0.1",     # CVE-2018-7536, CVE-2018-7537 (CRITICAL)
-    "urllib3==1.24.1",   # CVE-2019-11324 (HIGH)
-    "requests==2.6.0",   # CVE-2018-18074 (HIGH)
-    "jinja2==2.8",       # CVE-2016-10745 (CRITICAL)
+    "django==4.2.22",     # CVE-2018-7536, CVE-2018-7537 (CRITICAL)
+    "urllib3==2.5.0",   # CVE-2019-11324 (HIGH)
+    "requests==2.32.4",   # CVE-2018-18074 (HIGH)
+    "jinja2==3.1.6",       # CVE-2016-10745 (CRITICAL)
 ]
 
 [tool.hatch.build.targets.wheel]

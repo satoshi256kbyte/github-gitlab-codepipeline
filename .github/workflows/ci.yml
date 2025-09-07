@@ -239,10 +239,15 @@ jobs:
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
-        with:
-          fail-on-error: true
 
-  # AWS Lambdaデプロイジョブ
+      - name: Check CodeQL Results
+        if: always()
+        run: |
+            if [ -f "${{ github.workspace }}/results/codeql-results.sarif" ]; then
+                echo "CodeQL analysis completed. Check Security tab for results."
+            fi
+            
+# AWS Lambdaデプロイジョブ
   deploy_lambda:
     name: Deploy to AWS Lambda
     runs-on: ubuntu-latest

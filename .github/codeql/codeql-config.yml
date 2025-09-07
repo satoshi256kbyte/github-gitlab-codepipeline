@@ -16,6 +16,7 @@ paths-ignore:
   - "**/cdk.out/**"
   - "**/__pycache__/**"
   - "**/*.pyc"
+  - "**/.asdf/**"
 
 # 含めるパス
 paths:

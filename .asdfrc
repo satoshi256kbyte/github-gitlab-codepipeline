@@ -1,0 +1,8 @@
+legacy_version_file = yes
+use_release_candidates = no
+always_keep_download = yes
+plugin_repository_last_check_duration = 60
+disable_plugin_short_name_repository = no
+
+# キャッシュ設定
+export PYTHON_BUILD_CACHE_PATH=${ASDF_DATA_DIR:-$HOME/.asdf}/cache/python-build

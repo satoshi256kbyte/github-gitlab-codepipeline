@@ -43,6 +43,7 @@ jobs:
         run: |
           asdf plugin add python
           asdf install
+          ls -la
 
       - name: Setup uv
         run: |
@@ -53,6 +54,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
+            .asdf
             ~/.cache/pip
             ~/.cache/uv
             ~/.cargo
@@ -81,6 +83,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
+            .asdf
             ~/.cache/pip
             ~/.cache/uv
             ~/.cargo
@@ -106,7 +109,7 @@ jobs:
           uv run ruff format --check .
 
   # ユニットテストジョブ
-  test:
+  unittest:
     name: Unit Tests
     runs-on: ubuntu-latest
     needs: prepare
@@ -123,6 +126,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
+            .asdf
             ~/.cache/pip
             ~/.cache/uv
             ~/.cargo
@@ -146,15 +150,8 @@ jobs:
         run: |
           uv run pytest modules/api/tests/ -v --cov=modules/api --cov-report=xml
 
-      - name: Upload coverage reports
-        uses: codecov/codecov-action@v5
-        with:
-          file: ./coverage.xml
-          flags: unittests
-          name: codecov-umbrella
-
   # SCAチェックジョブ（Trivy)
-  sca:
+  sca_trivy:
     name: SCA (Trivy)
     runs-on: ubuntu-latest
     needs: prepare
@@ -169,9 +166,61 @@ jobs:
           scan-ref: "."
           trivy-config: trivy-config.yaml
 
-  # SASTチェックジョブ（CodeQL + CodeGuru Security）
-  sast:
-    name: SAST (CodeQL + CodeGuru)
+  # SASTチェックジョブ（CodeGuru Security）
+  sast_code_guru:
+    name: SAST (CodeGuru)
+    runs-on: ubuntu-latest
+    needs: prepare
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .asdf
+            ~/.cache/pip
+            ~/.cache/uv
+            ~/.cargo
+            ~/.local/bin
+          key: ${{ needs.prepare.outputs.cache-key }}
+
+      - name: Configure AWS credentials via OIDC
+        # GitHub OIDCを使ってIAMロールを引き受ける
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Run CodeGuru Security SAST scan
+        run: |
+          SCAN_NAME="${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-sast-$(date +%s)"
+          echo "Running CodeGuru Security SAST scan: $SCAN_NAME"
+          zip -r /tmp/source-code.zip . -x "*.git*" "*.pyc" "__pycache__/*" ".venv/*" ".asdf/*"
+          bash ./cicd/scripts/codeguru.sh $SCAN_NAME /tmp/source-code.zip ${{ env.AWS_REGION }}
+
+          # 脆弱性チェック
+          if [ -f "$SCAN_NAME.json" ]; then
+            CRITICAL_COUNT=$(jq '[.findings[] | select(.severity == "Critical")] | length' $SCAN_NAME.json)
+            HIGH_COUNT=$(jq '[.findings[] | select(.severity == "High")] | length' $SCAN_NAME.json)
+
+            echo "SAST - Critical vulnerabilities: $CRITICAL_COUNT"
+            echo "SAST - High vulnerabilities: $HIGH_COUNT"
+
+            if [ "$CRITICAL_COUNT" -gt 0 ]; then
+              echo "ERROR: Found $CRITICAL_COUNT critical vulnerabilities in SAST scan"
+              exit 1
+            fi
+          fi
+
+  sast_codeql:
+    name: SAST (CodeQL)
     runs-on: ubuntu-latest
     needs: prepare
     environment: production
@@ -188,64 +237,14 @@ jobs:
         with:
           languages: python
 
-      - name: Restore cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/pip
-            ~/.cache/uv
-            ~/.cargo
-            ~/.local/bin
-          key: ${{ needs.prepare.outputs.cache-key }}
-
-      - name: Setup asdf
-        uses: asdf-vm/actions/setup@v4
-
-      - name: Install tools via asdf
-        run: |
-          asdf plugin add python
-
-      - name: Setup uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
-
-      - name: Configure AWS credentials via OIDC
-        # GitHub OIDCを使ってIAMロールを引き受ける
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Run CodeGuru Security SAST scan
-        run: |
-          SCAN_NAME="${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-sast-$(date +%s)"
-          echo "Running CodeGuru Security SAST scan: $SCAN_NAME"
-          zip -r /tmp/source-code.zip . -x "*.git*" "node_modules/*" "*.pyc" "__pycache__/*" ".venv/*"
-          bash ./cicd/scripts/run_codeguru_security.sh $SCAN_NAME /tmp/source-code.zip ${{ env.AWS_REGION }}
-
-          # 脆弱性チェック
-          if [ -f "$SCAN_NAME.json" ]; then
-            CRITICAL_COUNT=$(jq '[.findings[] | select(.severity == "Critical")] | length' $SCAN_NAME.json)
-            HIGH_COUNT=$(jq '[.findings[] | select(.severity == "High")] | length' $SCAN_NAME.json)
-
-            echo "SAST - Critical vulnerabilities: $CRITICAL_COUNT"
-            echo "SAST - High vulnerabilities: $HIGH_COUNT"
-
-            if [ "$CRITICAL_COUNT" -gt 0 ]; then
-              echo "ERROR: Found $CRITICAL_COUNT critical vulnerabilities in SAST scan"
-              exit 1
-            fi
-          fi
 
   # AWS Lambdaデプロイジョブ
   deploy_lambda:
     name: Deploy to AWS Lambda
     runs-on: ubuntu-latest
-    needs: [lint, test, sca, sast]
+    needs: [lint, unittest, sca_trivy, sast_code_guru, sast_codeql]
     environment: production
     permissions:
       id-token: write
@@ -293,7 +292,7 @@ jobs:
   deploy_ec2:
     name: Deploy to EC2 (Blue/Green)
     runs-on: ubuntu-latest
-    needs: [lint, test, sca, sast]
+    needs: [lint, unittest, sca_trivy, sast_code_guru, sast_codeql]
     environment: production
     permissions:
       id-token: write
@@ -314,7 +313,7 @@ jobs:
       - name: Create deployment package
         run: |
           zip -r deployment-package.zip . \
-            -x "*.git*" "node_modules/*" "*.pyc" "__pycache__/*" ".venv/*" \
+            -x "*.git*" "*.pyc" "__pycache__/*" ".venv/*" ".asdf/*" \
             "cdk.out/*" "*.zip"
 
       - name: Upload to S3

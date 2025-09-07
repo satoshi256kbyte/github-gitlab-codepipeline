@@ -290,7 +290,7 @@ jobs:
 
   # EC2 CodeDeployデプロイジョブ
   deploy_ec2:
-    name: Deploy to EC2 (Blue/Green)
+    name: Deploy to EC2
     runs-on: ubuntu-latest
     needs: [lint, unittest, sca_trivy, sast_code_guru, sast_codeql]
     environment: production

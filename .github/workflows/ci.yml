@@ -90,19 +90,6 @@ jobs:
             ~/.local/bin
           key: ${{ needs.prepare.outputs.cache-key }}
 
-      - name: Setup asdf
-        uses: asdf-vm/actions/setup@v4
-
-      - name: Install tools via asdf
-        run: |
-          asdf plugin add python
-          asdf install
-
-      - name: Setup uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
       - name: Run linting
         run: |
           uv run ruff check .
@@ -133,19 +120,6 @@ jobs:
             ~/.local/bin
           key: ${{ needs.prepare.outputs.cache-key }}
 
-      - name: Setup asdf
-        uses: asdf-vm/actions/setup@v4
-
-      - name: Install tools via asdf
-        run: |
-          asdf plugin add python
-          asdf install
-
-      - name: Setup uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
       - name: Run tests
         run: |
           uv run pytest modules/api/tests/ -v --cov=modules/api --cov-report=xml
@@ -166,9 +140,9 @@ jobs:
           scan-ref: "."
           trivy-config: trivy-config.yaml
 
-  # SASTチェックジョブ（CodeGuru Security）
-  sast_code_guru:
-    name: SAST (CodeGuru)
+  # SASTチェックジョブ（Semgrep）
+  sast_semgrep:
+    name: SAST (Semgrep)
     runs-on: ubuntu-latest
     needs: prepare
     environment: production
@@ -191,39 +165,15 @@ jobs:
             ~/.local/bin
           key: ${{ needs.prepare.outputs.cache-key }}
 
-      - name: Configure AWS credentials via OIDC
-        # GitHub OIDCを使ってIAMロールを引き受ける
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Run CodeGuru Security SAST scan
+      - name: Run Semgrep SAST scan
         run: |
-          SCAN_NAME="${{ env.CICD_TOOL }}-${{ env.STAGE_NAME }}-sast-$(date +%s)"
-          echo "Running CodeGuru Security SAST scan: $SCAN_NAME"
-          zip -r /tmp/source-code.zip . -x "*.git*" "*.pyc" "__pycache__/*" ".venv/*" ".asdf/*"
-          bash ./cicd/scripts/codeguru.sh $SCAN_NAME /tmp/source-code.zip ${{ env.AWS_REGION }}
-
-          # 脆弱性チェック
-          if [ -f "$SCAN_NAME.json" ]; then
-            CRITICAL_COUNT=$(jq '[.findings[] | select(.severity == "Critical")] | length' $SCAN_NAME.json)
-            HIGH_COUNT=$(jq '[.findings[] | select(.severity == "High")] | length' $SCAN_NAME.json)
-
-            echo "SAST - Critical vulnerabilities: $CRITICAL_COUNT"
-            echo "SAST - High vulnerabilities: $HIGH_COUNT"
-
-            if [ "$CRITICAL_COUNT" -gt 0 ]; then
-              echo "ERROR: Found $CRITICAL_COUNT critical vulnerabilities in SAST scan"
-              exit 1
-            fi
-          fi
+           uv run semgrep scan --config=auto --error modules/
 
 # AWS Lambdaデプロイジョブ
   deploy_lambda:
     name: Deploy to AWS Lambda
     runs-on: ubuntu-latest
-    needs: [lint, unittest, sca_trivy, sast_code_guru]
+    needs: [prepare, lint, unittest, sca_trivy, sast_semgrep]
     environment: production
     permissions:
       id-token: write
@@ -231,18 +181,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Setup asdf
-        uses: asdf-vm/actions/setup@v4
-
-      - name: Install tools via asdf
-        run: |
-          asdf plugin add python
-          asdf install
-
-      - name: Setup uv
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.asdf
+            ~/.cache/pip
+            ~/.cache/uv
+            ~/.cargo
+            ~/.local/bin
+          key: ${{ needs.prepare.outputs.cache-key }}
 
       - name: Configure AWS credentials via OIDC
         # GitHub OIDCを使ってIAMロールを引き受ける
@@ -268,13 +216,24 @@ jobs:
   deploy_ec2:
     name: Deploy to EC2
     runs-on: ubuntu-latest
-    needs: [lint, unittest, sca_trivy, sast_code_guru]
+    needs: [prepare, lint, unittest, sca_trivy, sast_semgrep]
     environment: production
     permissions:
       id-token: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.asdf
+            ~/.cache/pip
+            ~/.cache/uv
+            ~/.cargo
+            ~/.local/bin
+          key: ${{ needs.prepare.outputs.cache-key }}
 
       - name: Configure AWS credentials via OIDC
         # GitHub OIDCを使ってIAMロールを引き受ける

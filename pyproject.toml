@@ -127,4 +127,5 @@ dev = [
     "pytest-cov>=6.2.1",
     "requests>=2.32.5",
     "ruff>=0.12.11",
+    "semgrep>=1.45.0",
 ]

@@ -32,6 +32,17 @@ jobs:
           echo "key=$CACHE_KEY" >> $GITHUB_OUTPUT
           echo "Cache key: $CACHE_KEY"
 
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.asdf
+            ~/.cache/pip
+            ~/.cache/uv
+            ~/.cargo
+            ~/.local/bin
+          key: ${{ steps.cache-key.outputs.key }}
+    
       - name: Setup asdf
         uses: asdf-vm/actions/setup@v4
 
@@ -45,17 +56,6 @@ jobs:
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-
-      - name: Cache dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.asdf
-            ~/.cache/pip
-            ~/.cache/uv
-            ~/.cargo
-            ~/.local/bin
-          key: ${{ steps.cache-key.outputs.key }}
 
       - name: Install Python dependencies
         run: |

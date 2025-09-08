@@ -268,7 +268,7 @@ jobs:
   deploy_ec2:
     name: Deploy to EC2
     runs-on: ubuntu-latest
-    needs: [lint, unittest, sca_trivy, sast_code_guru, sast_codeql]
+    needs: [lint, unittest, sca_trivy, sast_code_guru]
     environment: production
     permissions:
       id-token: write

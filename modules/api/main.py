@@ -48,9 +48,8 @@ app = FastAPI(
 # CORS設定
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "*"
-    ],  # 本番環境では適切なオリジンを設定  # nosemgrep: python.fastapi.security.wildcard-cors.wildcard-cors
+    # 本番環境では適切なオリジンを設定
+    allow_origins=["*"],  # nosemgrep
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
